@@ -29,7 +29,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // 로그인은 토큰 없이 허용
-        if (path.startsWith("/api/auth/")) {
+        if (path.startsWith("/api/auth/") || path.startsWith("/api/users/check")) {
             filterChain.doFilter(request, response);
             return;
         }

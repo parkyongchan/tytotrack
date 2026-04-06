@@ -19,6 +19,7 @@ const LANGS = {
     signupEyebrow: '회원가입', signupTitle: '회원가입', signupSub: '하기 내용을 기입 후 회원가입하여 주세요.',
     dupBtn: '중복체크', dupOk: '사용 가능한 아이디입니다.', dupFail: '이미 사용중인 아이디입니다.', dupMin: '5자리 이상 입력해주세요.',
     pwMatch: '비밀번호가 일치합니다.', pwNoMatch: '비밀번호가 일치하지 않습니다.',
+    confirmPwLabel: '비밀번호 확인',
     signupBtn: '가입하기', signupOk: '가입이 완료되었습니다! 로그인 해주세요.',
     terms: ['개인정보 수집 및 이용에 동의합니다.', '개인위치정보 수집 및 이용에 동의합니다.', '위성기반 서비스 이용약관에 동의합니다.', '위치정보 서비스 이용약관에 동의합니다.'],
     termsKeys: ['privacy', 'location', 'satellite', 'gps'],
@@ -39,6 +40,7 @@ const LANGS = {
     signupEyebrow: 'Create Account', signupTitle: 'Sign Up', signupSub: 'Please fill in the details below to create your account.',
     dupBtn: 'Check', dupOk: 'This ID is available.', dupFail: 'This ID is already taken.', dupMin: 'Minimum 5 characters required.',
     pwMatch: 'Passwords match.', pwNoMatch: 'Passwords do not match.',
+    confirmPwLabel: 'Confirm Password',
     signupBtn: 'Sign Up', signupOk: 'Registration complete! Please log in.',
     terms: [], termsKeys: [], termsLinks: [], company: '',
     forgotTitle: 'Password Recovery', forgotSub: 'Enter the information you registered with.',
@@ -56,6 +58,7 @@ const LANGS = {
     signupEyebrow: '会員登録', signupTitle: '会員登録', signupSub: '以下の情報を入力して登録してください。',
     dupBtn: '重複確認', dupOk: '使用可能なIDです。', dupFail: 'すでに使用中のIDです。', dupMin: '5文字以上入力してください。',
     pwMatch: 'パスワードが一致します。', pwNoMatch: 'パスワードが一致しません。',
+    confirmPwLabel: 'パスワード確認',
     signupBtn: '登録する', signupOk: '登録が完了しました！ログインしてください。',
     terms: [], termsKeys: [], termsLinks: [], company: '',
     forgotTitle: 'パスワード再発行', forgotSub: '登録時の情報を入力してください。',
@@ -121,7 +124,7 @@ export default function LoginPage({ onLogin }) {
       setDupChecked(false); return;
     }
     try {
-      const res = await api.get(`/users/check?loginId=${signupId}`);
+      const res = await axios.get(`/api/users/check?loginId=${signupId}`);
       if (res.data.exists) {
         setDupMsg({ text: t.dupFail, ok: false, show: true });
         setDupChecked(false);
@@ -130,8 +133,8 @@ export default function LoginPage({ onLogin }) {
         setDupChecked(true);
       }
     } catch {
-      setDupMsg({ text: t.dupOk, ok: true, show: true });
-      setDupChecked(true);
+      setDupMsg({ text: 'ID check failed. Please try again.', ok: false, show: true });
+      setDupChecked(false);
     }
   };
 
@@ -323,7 +326,7 @@ export default function LoginPage({ onLogin }) {
 
               {/* 비밀번호 확인 */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,244,255,.38)', marginBottom: '7px' }}>Confirm Password</label>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,244,255,.38)', marginBottom: '7px' }}>{t.confirmPwLabel}</label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px' }}>🔑</span>
                   <input type={showSignupPwC ? 'text' : 'password'} value={signupPwC} onChange={e => { setSignupPwC(e.target.value); checkPwMatch(signupPw, e.target.value); }} placeholder="Confirm password"
@@ -369,7 +372,13 @@ export default function LoginPage({ onLogin }) {
           {/* 언어 선택 */}
           <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
             {[['ko', '🇰🇷 한국어'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語']].map(([code, label]) => (
-              <button key={code} onClick={() => setLang(code)}
+              <button key={code} onClick={() => {
+                setLang(code);
+                setDupMsg({ text: '', ok: false, show: false });
+                setDupChecked(false);
+                setPwMsg({ text: '', ok: false, show: false });
+                setPwMatched(false);
+              }}
                 style={{ padding: '5px 12px', background: lang === code ? 'rgba(0,212,240,.14)' : 'rgba(255,255,255,.04)', border: `1px solid ${lang === code ? '#00d4f0' : 'rgba(255,255,255,.09)'}`, borderRadius: '6px', fontSize: '11px', fontWeight: '700', color: lang === code ? '#00d4f0' : 'rgba(232,244,255,.38)', cursor: 'pointer', transition: 'all .2s' }}>
                 {label}
               </button>
@@ -407,7 +416,7 @@ export default function LoginPage({ onLogin }) {
         <div onClick={() => setTermsPanel({ ...termsPanel, open: false })}
           style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.5)', display: 'flex', justifyContent: 'flex-end' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '360px', height: '100%', background: '#1a2d48', borderLeft: '1px solid rgba(0,212,240,.2)', display: 'flex', flexDirection: 'column', animation: 'slideInRight .3s ease' }}>
+            style={{ width: 'min(720px, 100%)', height: '100%', background: '#1a2d48', borderLeft: '1px solid rgba(0,212,240,.2)', display: 'flex', flexDirection: 'column', animation: 'slideInRight .3s ease' }}>
             <div style={{ padding: '20px', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Orbitron', monospace", fontSize: '12px', fontWeight: '700', color: '#00d4f0' }}>{termsPanel.title}</span>
               <button onClick={() => setTermsPanel({ ...termsPanel, open: false })} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
