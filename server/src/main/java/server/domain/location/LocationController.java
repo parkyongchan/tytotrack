@@ -79,4 +79,12 @@ public class LocationController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+    @GetMapping("/range")
+    public ResponseEntity<?> getLocationRange(
+            @RequestParam String start,
+            @RequestParam String end) {
+        List<SndEventList> data = sndRepo
+                .findByRegDateBetweenOrderByRegDateDesc(start, end);
+        return ResponseEntity.ok(data);
+    }
 }

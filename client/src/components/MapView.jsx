@@ -18,6 +18,8 @@ export default function MapView({ devices }) {
   const markerLayer = useRef(null);
   const trackLayer = useRef(null);
   const [autoplay, setAutoplay] = useState(false);
+  const [clickedDevice, setClickedDevice] = useState(null);
+  const [clickPos, setClickPos] = useState(null);
   const [countdown, setCountdown] = useState(50 * 60);
   const timerRef = useRef(null);
 
@@ -39,6 +41,22 @@ export default function MapView({ devices }) {
       layers: [osmLayer, seaLayer, trackLayer.current, markerLayer.current],
       view: new View({ center: fromLonLat([127, 37]), zoom: 6 }),
       controls: [],
+    });
+
+    // 지도 클릭 시 정보 박스
+    mapInstance.current.on('click', (e) => {
+      const features = mapInstance.current.getFeaturesAtPixel(e.pixel);
+      if (features.length > 0) {
+        const f = features[0];
+        const d = f.get('device');
+        if (d) {
+          setClickedDevice(d);
+          setClickPos({ x: e.pixel[0], y: e.pixel[1] });
+        }
+      } else {
+        setClickedDevice(null);
+        setClickPos(null);
+      }
     });
 
     return () => {
@@ -198,6 +216,32 @@ export default function MapView({ devices }) {
           </div>
         ))}
       </div>
+
+      {/* 클릭 정보 박스 */}
+      {clickedDevice && clickPos && (
+        <div style={{ position: 'absolute', left: clickPos.x, top: clickPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.95)', border: `1px solid ${clickedDevice.eventcode === '4' ? 'rgba(239,68,68,.4)' : 'rgba(0,212,240,.3)'}`, borderRadius: '10px', padding: '10px 14px', minWidth: '180px', zIndex: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: clickedDevice.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
+              {clickedDevice.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {clickedDevice.alias}
+            </span>
+            <button onClick={() => { setClickedDevice(null); setClickPos(null); }}
+              style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+          </div>
+          {[
+            ['IMEI', clickedDevice.imei],
+            ['LAT', clickedDevice.lat?.toFixed(6)],
+            ['LON', clickedDevice.lon?.toFixed(6)],
+            ['SPD', `${clickedDevice.speed || 0}kn`],
+            ['HDG', `${clickedDevice.heading || 0}°`],
+            ['TIME', clickedDevice.lastUpdate ? `${clickedDevice.lastUpdate.slice(0, 4)}-${clickedDevice.lastUpdate.slice(4, 6)}-${clickedDevice.lastUpdate.slice(6, 8)} ${clickedDevice.lastUpdate.slice(8, 10)}:${clickedDevice.lastUpdate.slice(10, 12)}` : ''],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+              <span style={{ fontSize: '9px', color: '#e8f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Pulse 애니메이션 CSS */}
       <style>{`

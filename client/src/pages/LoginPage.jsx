@@ -23,7 +23,7 @@ const LANGS = {
     signupBtn: '가입하기', signupOk: '가입이 완료되었습니다! 로그인 해주세요.',
     terms: ['개인정보 수집 및 이용에 동의합니다.', '개인위치정보 수집 및 이용에 동의합니다.', '위성기반 서비스 이용약관에 동의합니다.', '위치정보 서비스 이용약관에 동의합니다.'],
     termsKeys: ['privacy', 'location', 'satellite', 'gps'],
-    termsLinks: [['개인정보처리방침','privacy'],['개인위치정보처리방침','location'],['위성기반 서비스 이용약관','satellite'],['위치정보 서비스 이용약관','gps']],
+    termsLinks: [['개인정보처리방침', 'privacy'], ['개인위치정보처리방침', 'location'], ['위성기반 서비스 이용약관', 'satellite'], ['위치정보 서비스 이용약관', 'gps']],
     company: '아리온통신㈜ · 통신판매신고번호: 영등포 19-1796호 · 사업자등록번호: 107-86-47974\n대표이사: 박웅범 · 서울특별시 영등포구 경인로 775, 에이스 하이테크시티 1동 1701호\nTEL: 02-6309-6800 · FAX: 02-6309-6809',
     forgotTitle: '비밀번호 찾기', forgotSub: '가입 시 등록한 정보를 입력해주세요.',
     nameLbl: '이름', idLbl: '아이디', emailLbl: '이메일', cancel: '취소', confirm: '확인',
@@ -374,6 +374,7 @@ export default function LoginPage({ onLogin }) {
             {[['ko', '🇰🇷 한국어'], ['en', '🇺🇸 English'], ['ja', '🇯🇵 日本語']].map(([code, label]) => (
               <button key={code} onClick={() => {
                 setLang(code);
+                localStorage.setItem('lang', code);
                 setDupMsg({ text: '', ok: false, show: false });
                 setDupChecked(false);
                 setPwMsg({ text: '', ok: false, show: false });
