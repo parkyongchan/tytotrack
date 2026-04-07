@@ -40,6 +40,7 @@ public class User {
     private String country;
     private String phone;
 
+
     @Builder.Default
     @Column(length = 10)
     private String locationFormat = "DD";

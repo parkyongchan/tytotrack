@@ -11,5 +11,6 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
     Optional<Device> findByImei(String imei);
     boolean existsByImei(String imei);
     List<Device> findByActiveTrue();
+    Optional<Device> findByImeiAndActiveTrue(String imei);
     Page<Device> findByActiveTrue(Pageable pageable);
 }

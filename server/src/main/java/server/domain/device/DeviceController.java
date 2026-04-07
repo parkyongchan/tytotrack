@@ -35,8 +35,8 @@ public class DeviceController {
 
     // 장비 단건 조회
     @GetMapping("/{imei}")
-    public ResponseEntity<?> getDevice(@PathVariable String imei) {
-        return deviceRepository.findByImei(imei)
+    public ResponseEntity<?> getByImei(@PathVariable String imei) {
+        return deviceRepository.findByImeiAndActiveTrue(imei)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
