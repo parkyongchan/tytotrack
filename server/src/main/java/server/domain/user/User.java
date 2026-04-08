@@ -39,7 +39,12 @@ public class User {
 
     private String country;
     private String phone;
-
+    private String createdBy; // 생성한 관리자 loginId
+    private String companyId;
+    @ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
+    @CollectionTable(name = "user_assigned_devices", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "imei")
+    private java.util.List<String> assignedDeviceImeis = new java.util.ArrayList<>();
 
     @Builder.Default
     @Column(length = 10)

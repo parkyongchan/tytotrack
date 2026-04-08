@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/check").permitAll()
                         .requestMatchers("/api/location/range").permitAll()
                         .requestMatchers("/api/profiles/**").permitAll()
+                        .requestMatchers("/api/users/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

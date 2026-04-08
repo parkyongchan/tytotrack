@@ -21,5 +21,5 @@ server:
 
 jwt:
   secret: TytoTrackJwtSecretKey2026VeryLongStringMustBe256BitAtLeast!!
-  expiration: 1800000
+  expiration: 86400000
   refresh-expiration: 604800000

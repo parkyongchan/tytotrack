@@ -10,8 +10,9 @@ export default function App() {
     const name = localStorage.getItem('name');
     const loginId = localStorage.getItem('loginId');
     const role = localStorage.getItem('role');
+    const companyId = localStorage.getItem('companyId');
     if (token && name) {
-      setUser({ token, name, loginId, role });
+      setUser({ token, name, loginId, role, companyId });
     }
   }, []);
 

@@ -62,10 +62,10 @@ const initForm = {
   loginId: '', password: '', passwordConfirm: '', name: '', role: 'REVIEWER',
   email: '', country: '', phone: '', locationFormat: 'DD', speedUnit: 'KN',
   gmtZone: 9, textViewRefresh: true, textViewRefreshMin: 1, active: true,
-  assignedDeviceImeis: [],
+  assignedDeviceImeis: [], companyId: '',
 };
 
-export default function UsersPage() {
+export default function UsersPage({ user, devices: propDevices = [] }) {
   const [users, setUsers] = useState([]);
   const [devices, setDevices] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -93,7 +93,15 @@ export default function UsersPage() {
   const fetchDevices = async () => {
     try {
       const res = await api.get('/devices');
-      setDevices(res.data.content || []);
+      const allDevices = res.data.content || [];
+      // 권한별 장비 필터링
+      if (myRole === 'SUPER_ADMIN') {
+        setDevices(allDevices);
+      } else {
+        // ADMIN/REVIEWER: 본인에게 할당된 장비만
+        const myAssigned = user?.assignedDeviceImeis || propDevices.map(d => d.imei);
+        setDevices(allDevices.filter(d => myAssigned.includes(d.imei)));
+      }
     } catch { setDevices([]); }
   };
 
@@ -135,13 +143,16 @@ export default function UsersPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm(t.confirmDelete)) return;
-    await api.delete(`/users/${id}`);
-    fetchUsers();
+    try {
+      await api.delete(`/users/${id}`);
+      fetchUsers();
+    } catch (e) { alert('삭제 실패'); }
   };
 
   const closeForm = () => {
     setShowForm(false); setEditUser(null);
-    setForm(initForm); setPwMsg(''); setDupMsg({ text: '', ok: false }); setDupChecked(false);
+    setForm({...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : ''});
+    setPwMsg(''); setDupMsg({ text: '', ok: false }); setDupChecked(false);
   };
 
   const sendSecurecard = async () => {
@@ -187,7 +198,11 @@ export default function UsersPage() {
           {t.title}
         </span>
         {myRole !== 'REVIEWER' && (
-          <button onClick={() => { closeForm(); setShowForm(true); }}
+          <button onClick={() => {
+            setForm({...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : ''});
+            setEditUser(null); setPwMsg(''); setDupMsg({text:'',ok:false}); setDupChecked(false);
+            setShowForm(true);
+          }}
             style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
             {t.addBtn}
           </button>
@@ -279,6 +294,16 @@ export default function UsersPage() {
                 <input style={inp} value={form.country || ''} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} placeholder={t.country} />
               </div>
 
+              {/* Company ID */}
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={lbl}>COMPANY ID <span style={{ color:'#4b6483', fontSize:'9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
+                <input style={{ ...inp, background: myRole !== 'SUPER_ADMIN' ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: myRole !== 'SUPER_ADMIN' ? '#6b8fae' : '#fff' }}
+                  value={form.companyId || ''}
+                  onChange={e => myRole === 'SUPER_ADMIN' && setForm(p => ({ ...p, companyId: e.target.value }))}
+                  readOnly={myRole !== 'SUPER_ADMIN'}
+                  placeholder="예: company-A, tyto-korea 등 자유롭게 입력" />
+              </div>
+
               {/* Location Format */}
               <div>
                 <label style={lbl}>{t.locFmt}</label>
@@ -325,23 +350,14 @@ export default function UsersPage() {
 
             {/* 할당 장비 (SUPER_ADMIN 제외) */}
             {form.role !== 'SUPER_ADMIN' && devices.length > 0 && (
-              <div style={{ marginTop: '14px' }}>
-                <label style={lbl}>{t.assignedDevices}</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px', background: 'rgba(0,0,0,.2)', borderRadius: '8px', border: '1px solid rgba(0,212,240,.15)' }}>
-                  {devices.map(d => {
-                    const checked = form.assignedDeviceImeis?.includes(d.imei);
-                    return (
-                      <label key={d.imei} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleDevice(d.imei)} style={{ display: 'none' }} />
-                        <div style={{ width: '14px', height: '14px', border: `1.5px solid ${checked ? '#00d4f0' : 'rgba(255,255,255,.2)'}`, borderRadius: '3px', background: checked ? '#00d4f0' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', color: '#0d1628' }}>
-                          {checked ? '✓' : ''}
-                        </div>
-                        <span style={{ fontSize: '11px', color: checked ? '#e8f4ff' : '#6b8fae' }}>{d.alias}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+              <DeviceAssignPanel
+                devices={devices}
+                selected={form.assignedDeviceImeis || []}
+                onToggle={toggleDevice}
+                myRole={myRole}
+                lbl={lbl}
+                label={t.assignedDevices}
+              />
             )}
 
             {/* Securecard Reissue (수정 시만) */}
@@ -425,6 +441,17 @@ export default function UsersPage() {
                       </button>
                     )}
                     {myRole !== 'REVIEWER' && (
+                      <button onClick={async () => {
+                        try {
+                          const res = await api.put(`/users/${u.id}/toggle`);
+                          fetchUsers();
+                        } catch (e) { alert('오류가 발생했습니다.'); }
+                      }}
+                        style={{ padding: '3px 10px', borderRadius: '5px', border: `1px solid ${u.active ? 'rgba(245,158,11,.3)' : 'rgba(16,185,129,.3)'}`, background: u.active ? 'rgba(245,158,11,.1)' : 'rgba(16,185,129,.1)', color: u.active ? '#f59e0b' : '#10b981', cursor: 'pointer', fontSize: '10px' }}>
+                        {u.active ? '중지' : '활성'}
+                      </button>
+                    )}
+                    {myRole !== 'REVIEWER' && (
                       <button onClick={() => handleDelete(u.id)}
                         style={{ padding: '3px 10px', borderRadius: '5px', border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.1)', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>
                         {t.delete}
@@ -459,6 +486,81 @@ export default function UsersPage() {
               <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
                 style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === totalPages ? 0.3 : 1 }}>»</button>
             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+function DeviceAssignPanel({ devices, selected, onToggle, myRole, lbl, label }) {
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const PAGE_SIZE = 20;
+
+  const filtered = devices.filter(d =>
+    !deviceSearch ||
+    d.alias?.toLowerCase().includes(deviceSearch.toLowerCase()) ||
+    d.imei?.includes(deviceSearch)
+  );
+
+  const displayed = showAll ? filtered : filtered.slice(0, PAGE_SIZE);
+  const selectedCount = selected.length;
+
+  return (
+    <div style={{ marginTop: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+        <label style={lbl}>{label} <span style={{ color: '#00d4f0' }}>({selectedCount}/{devices.length})</span></label>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button onClick={() => devices.forEach(d => !selected.includes(d.imei) && onToggle(d.imei))}
+            style={{ padding: '2px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '4px', color: '#00d4f0', fontSize: '9px', cursor: 'pointer' }}>
+            전체선택
+          </button>
+          <button onClick={() => devices.forEach(d => selected.includes(d.imei) && onToggle(d.imei))}
+            style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '4px', color: '#ef4444', fontSize: '9px', cursor: 'pointer' }}>
+            전체해제
+          </button>
+        </div>
+      </div>
+
+      {/* 검색 */}
+      <input
+        value={deviceSearch}
+        onChange={e => setDeviceSearch(e.target.value)}
+        placeholder="🔍 장비 검색 (Alias / IMEI)"
+        style={{ width: '100%', padding: '7px 10px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '7px', color: '#fff', fontSize: '11px', outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }}
+      />
+
+      {/* 장비 목록 */}
+      <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '8px', background: 'rgba(0,0,0,.2)', borderRadius: '8px', border: '1px solid rgba(0,212,240,.15)' }}>
+        {displayed.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#4b6483', fontSize: '11px', padding: '12px' }}>검색 결과 없음</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            {displayed.map(d => {
+              const checked = selected.includes(d.imei);
+              return (
+                <label key={d.imei} onClick={() => onToggle(d.imei)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '5px 8px', borderRadius: '6px', background: checked ? 'rgba(0,212,240,.08)' : 'transparent', border: `1px solid ${checked ? 'rgba(0,212,240,.2)' : 'transparent'}`, transition: 'all .15s' }}>
+                  <div style={{ width: '14px', height: '14px', border: `1.5px solid ${checked ? '#00d4f0' : 'rgba(255,255,255,.2)'}`, borderRadius: '3px', background: checked ? '#00d4f0' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', color: '#0d1628', flexShrink: 0 }}>
+                    {checked ? '✓' : ''}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: checked ? '#e8f4ff' : '#6b8fae', fontWeight: checked ? '700' : '400' }}>{d.alias}</div>
+                    <div style={{ fontSize: '8px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>{d.imei?.slice(-6)}</div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 더 보기 */}
+        {!showAll && filtered.length > PAGE_SIZE && (
+          <div style={{ textAlign: 'center', marginTop: '8px' }}>
+            <button onClick={() => setShowAll(true)}
+              style={{ padding: '4px 16px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', cursor: 'pointer' }}>
+              + {filtered.length - PAGE_SIZE}개 더 보기
+            </button>
           </div>
         )}
       </div>

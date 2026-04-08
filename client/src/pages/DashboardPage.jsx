@@ -311,7 +311,7 @@ export default function DashboardPage({ user, onLogout }) {
             </div>
           )}
           {activePage === 'tvdata' && <TextViewData devices={devices} />}
-          {activePage === 'users' && <UsersPage />}
+          {activePage === 'users' && <UsersPage user={user} devices={devicesWithLocation} />}
           {activePage === 'share' && <ShareSettings devices={devices} />}
 
           {activePage !== 'dash' && activePage !== 'devices' && activePage !== 'tvloc' && activePage !== 'users' && activePage !== 'chat' && activePage !== 'tvdata' && activePage !== 'share' && (

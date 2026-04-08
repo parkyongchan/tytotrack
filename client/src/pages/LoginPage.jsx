@@ -113,7 +113,7 @@ export default function LoginPage({ onLogin }) {
       localStorage.setItem('role', res.data.role || 'REVIEWER');
       localStorage.setItem('loginId', res.data.loginId);
       localStorage.setItem('name', res.data.name);
-      localStorage.setItem('role', res.data.role);
+      localStorage.setItem('companyId', res.data.companyId || '');
       onLogin(res.data);
     } catch { setError(t.error); }
     finally { setLoading(false); }
