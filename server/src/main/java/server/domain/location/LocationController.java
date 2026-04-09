@@ -41,6 +41,27 @@ public class LocationController {
         return ResponseEntity.ok(Map.of("message", "수신 완료", "idx", data.getIdx()));
     }
 
+    /// SUPER_ADMIN 전용 삭제
+    @DeleteMapping("/snd/{idx}")
+    public ResponseEntity<?> deleteSnd(
+            @PathVariable Long idx,
+            @RequestHeader("Authorization") String authHeader) {
+        // JWT에서 role 직접 파싱 (간단 처리)
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) return ResponseEntity.status(403).body(Map.of("message", "권한 없음"));
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            if (!payload.contains("SUPER_ADMIN")) {
+                return ResponseEntity.status(403).body(Map.of("message", "권한 없음"));
+            }
+            sndRepo.deleteById(idx);
+            return ResponseEntity.ok(Map.of("message", "삭제 완료"));
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body(Map.of("message", "권한 확인 실패"));
+        }
+    }
+
     // 장비 명령 전송 (DB → SWITCH)
     @PostMapping("/command")
     public ResponseEntity<?> sendCommand(@RequestBody Map<String, String> req) {

@@ -328,13 +328,13 @@ export default function DashboardPage({ user, onLogout }) {
               onClose={() => setTrackDevice(null)}
             />
           )}
-          {activePage === 'tvloc' && <TextViewLocation devices={devices} />}
+          {activePage === 'tvloc' && <TextViewLocation devices={devices} allDevices={allDevices} />}
           {activePage === 'chat' && (
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <ChatRoom user={user} />
+              <ChatRoom user={user} devices={devicesWithLocation} />
             </div>
           )}
-          {activePage === 'tvdata' && <TextViewData devices={devices} />}
+          {activePage === 'tvdata' && <TextViewData devices={devices} allDevices={allDevices} />}
           {activePage === 'users' && <UsersPage user={user} devices={devicesWithLocation} />}
           {activePage === 'share' && <ShareSettings devices={devices} />}
 
@@ -452,7 +452,10 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
       const start = startStr + '00';
       const end = endStr + '99';
       const res = await api.get(`/location/range?start=${start}&end=${end}`);
-      const data = Array.isArray(res.data) ? res.data : [];
+      // 내 장비 IMEI만 필터링
+      const myImeis = devices.map(d => d.imei);
+      const data = (Array.isArray(res.data) ? res.data : [])
+        .filter(d => myImeis.includes(d.imei));
       setAllData(data);
       updateMapPoints(data, activeTab);
     } catch { setAllData([]); }
@@ -587,7 +590,9 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
                 const startStr = s.replace('T', '').replace(/-|:/g, '').slice(0, 12) + '00';
                 const endStr = e.replace('T', '').replace(/-|:/g, '').slice(0, 12) + '99';
                 const res = await api.get(`/location/range?start=${startStr}&end=${endStr}`);
-                const data = Array.isArray(res.data) ? res.data : [];
+                const myImeis = devices.map(d => d.imei);
+                const data = (Array.isArray(res.data) ? res.data : [])
+                  .filter(d => myImeis.includes(d.imei));
                 setAllData(data);
                 setPage(1);
                 updateMapPoints(data, activeTab);
