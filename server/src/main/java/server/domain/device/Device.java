@@ -38,6 +38,8 @@ public class Device {
     private String satellite;    // IRIDIUM, GLOBALSTAR
 
     private String profileName;
+    private String registeredBy; // 등록한 어드민 loginId
+    private String registeredByCompany; // 등록한 어드민 companyId
     private LocalDate openDate;
 
     @Builder.Default
@@ -47,7 +49,19 @@ public class Device {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User assignedUser;
+
+    // 프론트에 필요한 정보만 별도 노출
+    public String getAssignedUserName() {
+        return assignedUser != null ? assignedUser.getName() : null;
+    }
+    public String getAssignedUserLoginId() {
+        return assignedUser != null ? assignedUser.getLoginId() : null;
+    }
+    public Long getAssignedUserId() {
+        return assignedUser != null ? assignedUser.getId() : null;
+    }
 
     @CreatedDate
     @Column(updatable = false)

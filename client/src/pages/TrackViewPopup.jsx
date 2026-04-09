@@ -10,26 +10,21 @@ import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import LineString from 'ol/geom/LineString';
 import { fromLonLat } from 'ol/proj';
-import { Style, Circle, Fill, Stroke, Icon } from 'ol/style';
-import Overlay from 'ol/Overlay';
-import { defaults as defaultControls } from 'ol/control';
+import { Style, Circle, Fill, Stroke } from 'ol/style';
 
-export default function TrackViewPopup({ device, imei, alias, onClose }) {
+export default function TrackViewPopup({ device, imei, alias, onClose, defaultPeriod = '3일' }) {
     const mapRef = useRef(null);
     const mapObj = useRef(null);
     const vectorSource = useRef(new VectorSource());
-    const overlayRef = useRef(null);
-    const overlayEl = useRef(null);
     const [popupPos, setPopupPos] = useState(null);
     const playTimer = useRef(null);
 
-    const [allData, setAllData] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
     const [selectedPoint, setSelectedPoint] = useState(null);
     const [playIdx, setPlayIdx] = useState(0);
     const [playing, setPlaying] = useState(false);
     const [playSpeed, setPlaySpeed] = useState(1);
-    const [period, setPeriod] = useState('3일');
+    const [period, setPeriod] = useState(defaultPeriod);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
     const PER_PAGE = 30;
@@ -46,12 +41,11 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
             const data = (Array.isArray(res.data) ? res.data : [])
                 .filter(d => d.imei === imei && (d.eventcode === '1' || d.eventcode === '4'))
                 .sort((a, b) => (b.regDate || '').localeCompare(a.regDate || ''));
-            setAllData(data);
             setFilteredData(data);
             setPlayIdx(data.length - 1);
             setPlaying(false);
             setPage(1);
-        } catch { }
+        } catch (_e) { /* 무시 */ }
         finally { setLoading(false); }
     };
 
@@ -63,6 +57,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
         else if (p === '48시') start.setHours(start.getHours() - 48);
         else if (p === '3일') start.setDate(start.getDate() - 3);
         else if (p === '7일') start.setDate(start.getDate() - 7);
+        else if (p === '30일') start.setDate(start.getDate() - 30);
         const fmt = d => d.toISOString().replace('T', '').replace(/-|:/g, '').slice(0, 12);
         return { start: fmt(start), end: fmt(now) };
     };
@@ -76,7 +71,6 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
             const data = (Array.isArray(res.data) ? res.data : [])
                 .filter(d => d.imei === imei && (d.eventcode === '1' || d.eventcode === '4'))
                 .sort((a, b) => (b.regDate || '').localeCompare(a.regDate || ''));
-            setAllData(data);
             setFilteredData(data);
             setPlayIdx(data.length - 1);
             setPlaying(false);
@@ -114,6 +108,26 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
         return () => { mapObj.current?.setTarget(undefined); mapObj.current = null; };
     }, []);
 
+    // 랜덤 고유 색상 (컴포넌트 마운트 시 1회 생성)
+    const trackColor = useRef((() => {
+        const hue = Math.floor(Math.random() * 360);
+        const h = hue / 360;
+        const s = 0.75, l = 0.6;
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p2 = 2 * l - q;
+        const hue2rgb = (t) => {
+            if (t < 0) t += 1; if (t > 1) t -= 1;
+            if (t < 1 / 6) return p2 + (q - p2) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p2 + (q - p2) * (2 / 3 - t) * 6;
+            return p2;
+        };
+        const r = Math.round(hue2rgb(h + 1 / 3) * 255);
+        const g = Math.round(hue2rgb(h) * 255);
+        const b = Math.round(hue2rgb(h - 1 / 3) * 255);
+        return { r, g, b };
+    })());
+
     // 지도에 트랙 그리기
     useEffect(() => {
         if (!mapObj.current) return;
@@ -134,60 +148,63 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
 
         if (points.length === 0) return;
 
-        // 폴리라인
-        const coords = points.map(p => fromLonLat([p.lon, p.lat]));
+        const { r, g, b } = trackColor.current;
+        const total = points.length;
+
+        // 점선 폴리라인 (오래된→최신 순서)
+        const coords = [...points].reverse().map(p => fromLonLat([p.lon, p.lat]));
         const line = new Feature({ geometry: new LineString(coords) });
         line.setStyle(new Style({
-            stroke: new Stroke({ color: 'rgba(0,212,240,0.6)', width: 2, lineDash: [6, 4] })
+            stroke: new Stroke({
+                color: `rgba(${r},${g},${b},0.5)`,
+                width: 2,
+                lineDash: [6, 4],
+            })
         }));
         vectorSource.current.addFeature(line);
 
-        // 마커 (오래된것 희미하게)
-        const total = points.length;
+        // 마커 — 최신(i=0)이 크고 뚜렷, 오래될수록 희미하고 작게
         points.forEach((p, i) => {
-            const ratio = (i + 1) / total;
             const isSOS = p.eventcode === '4';
-            const isLatest = i === total - 1;
-            const isPlaying = i === playIdx;
+            const isLatest = i === 0; // filteredData[0]이 최신
+            const isCurrent = i === playIdx;
 
-            const color = isSOS ? `rgba(239,68,68,${0.3 + ratio * 0.7})`
-                : `rgba(0,212,240,${0.2 + ratio * 0.8})`;
+            // 최신=1.0, 가장 오래된=0.08
+            const ratio = total > 1 ? i / (total - 1) : 0;
+            const opacity = Math.max(0.08, 1 - ratio * 0.92);
+            const radius = Math.max(3, 13 - ratio * 10);
 
-            const size = isLatest ? 10 : isPlaying ? 12 : 5 + ratio * 4;
+            const fillColor = isSOS
+                ? `rgba(239,68,68,${opacity})`
+                : `rgba(${r},${g},${b},${opacity})`;
+            const strokeColor = isSOS
+                ? `rgba(255,80,80,${Math.min(1, opacity + 0.3)})`
+                : `rgba(${r},${g},${b},${Math.min(1, opacity + 0.3)})`;
 
             const feat = new Feature({ geometry: new Point(fromLonLat([p.lon, p.lat])) });
             feat.set('pointData', p);
             feat.setStyle(new Style({
                 image: new Circle({
-                    radius: size,
-                    fill: new Fill({ color }),
+                    radius: isCurrent ? Math.max(radius, 13) : radius,
+                    fill: new Fill({ color: isCurrent ? `rgba(16,185,129,0.4)` : fillColor }),
                     stroke: new Stroke({
-                        color: isLatest ? '#fff' : isSOS ? '#ef4444' : '#00d4f0',
-                        width: isLatest ? 2.5 : 1
+                        color: isCurrent ? '#10b981' : isLatest ? '#fff' : strokeColor,
+                        width: isLatest || isCurrent ? 2.5 : 1,
                     })
                 })
             }));
             vectorSource.current.addFeature(feat);
         });
 
-        // 현재 재생 위치 표시
-        if (playIdx < points.length) {
-            const curr = points[playIdx];
-            const playFeat = new Feature({ geometry: new Point(fromLonLat([curr.lon, curr.lat])) });
-            playFeat.setStyle(new Style({
-                image: new Circle({
-                    radius: 14,
-                    fill: new Fill({ color: 'rgba(16,185,129,0.3)' }),
-                    stroke: new Stroke({ color: '#10b981', width: 2.5 })
-                })
-            }));
-            vectorSource.current.addFeature(playFeat);
-        }
-
-        // 지도 범위 맞추기
+        // 지도 범위 — 포인트 전체가 보이게 + 거리에 따라 자동 정밀도
         const extent = vectorSource.current.getExtent();
         if (extent[0] !== Infinity) {
-            mapObj.current.getView().fit(extent, { padding: [40, 40, 40, 40], maxZoom: 14 });
+            mapObj.current.getView().fit(extent, {
+                padding: [60, 60, 60, 60],
+                // 포인트 1개면 정밀하게, 여러개면 거리에 따라 자동
+                maxZoom: points.length === 1 ? 17 : 16,
+                duration: 600,
+            });
         }
     }, [filteredData, playIdx]);
 
@@ -235,7 +252,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose }) {
             <div style={{ height: '44px', background: 'rgba(10,20,38,.95)', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px', flexShrink: 0 }}>
                 {/* 기간 버튼 */}
                 <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>기간</span>
-                {['24시', '48시', '3일', '7일'].map(p => (
+                {['24시', '48시', '3일', '7일', '30일'].map(p => (
                     <button key={p} onClick={() => { setPeriod(p); fetchData(p); setPage(1); }}
                         style={{ padding: '4px 10px', background: period === p ? '#00d4f0' : 'rgba(0,212,240,.08)', border: `1px solid ${period === p ? '#00d4f0' : 'rgba(0,212,240,.2)'}`, borderRadius: '6px', color: period === p ? '#0a1628' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
                         {p}

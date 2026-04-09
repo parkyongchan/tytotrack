@@ -10,8 +10,16 @@ import java.util.Optional;
 public interface DeviceRepository extends JpaRepository<Device, Long> {
     Optional<Device> findByImei(String imei);
     boolean existsByImei(String imei);
+    boolean existsByImeiAndActiveTrue(String imei);
     List<Device> findByActiveTrue();
     Optional<Device> findByImeiAndActiveTrue(String imei);
-    java.util.List<Device> findByImeiInAndActiveTrue(java.util.List<String> imeis);
+    List<Device> findByImeiInAndActiveTrue(List<String> imeis);
     Page<Device> findByActiveTrue(Pageable pageable);
+    List<Device> findByRegisteredByCompanyAndActiveTrue(String companyId);
+    List<Device> findByRegisteredByAndActiveTrue(String registeredBy);
+    List<Device> findByRegisteredByCompanyAndDeletedAtIsNull(String companyId);
+    List<Device> findByRegisteredByAndDeletedAtIsNull(String registeredBy);
+    List<Device> findByDeletedAtIsNull();
+    List<Device> findByRegisteredByCompany(String companyId);
+    List<Device> findByRegisteredBy(String registeredBy);
 }

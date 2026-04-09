@@ -30,4 +30,18 @@ public class RcvEventList {
     // 등록 시간
     @Column(name = "reg_date", length = 20)
     private String regDate;
+
+    // 이리듐 GW MT Confirmation 상태코드
+    // 1~50: 큐 등록 성공(대기순서), 0: 성공, 음수: 실패
+    @Column(name = "mt_status", length = 10)
+    private String mtStatus;
+
+    // 이리듐 GW Auto ID Reference
+    @Column(name = "auto_id", length = 20)
+    private String autoId;
+
+    // 재전송 횟수
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
 }

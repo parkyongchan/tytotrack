@@ -19,7 +19,8 @@ public class SndEventList {
     @Column(name = "imei", length = 20)
     private String imei;
 
-    // 이벤트 코드: 1=VER, 2=CAN, 3=CAN+GPS, 4=EVENT
+    // 이벤트 코드: 1=TRACK, 2=CAN, 3=MSG/CAN+GPS, 4=SOS, 5=EVENT
+    // eventcode=3이고 memo 있으면 채팅메시지, position 있으면 CAN+GPS
     @Column(name = "eventcode", length = 10)
     private String eventcode;
 

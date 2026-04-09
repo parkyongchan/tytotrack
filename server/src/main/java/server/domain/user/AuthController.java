@@ -16,6 +16,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final InviteCodeRepository inviteCodeRepository;
 
     // 로그인 API
     @PostMapping("/login")
@@ -78,18 +79,38 @@ public class AuthController {
     public ResponseEntity<?> signup(@RequestBody Map<String, String> req) {
         String loginId = req.get("loginId");
         String password = req.get("password");
+        String name = req.get("name") != null ? req.get("name") : loginId;
+        String inviteCode = req.get("inviteCode");
 
         if (userRepository.existsByLoginId(loginId)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "이미 사용중인 아이디입니다."));
         }
 
+        // 초대코드 검증
+        String companyId = "";
+        String createdBy = "";
+        if (inviteCode != null && !inviteCode.isEmpty()) {
+            InviteCode ic = inviteCodeRepository.findByCode(inviteCode).orElse(null);
+            if (ic == null) return ResponseEntity.badRequest().body(Map.of("message", "유효하지 않은 초대 코드입니다."));
+            if (ic.getUsed()) return ResponseEntity.badRequest().body(Map.of("message", "이미 사용된 초대 코드입니다."));
+            if (ic.getExpiresAt().isBefore(java.time.LocalDateTime.now())) return ResponseEntity.badRequest().body(Map.of("message", "만료된 초대 코드입니다."));
+            companyId = ic.getCompanyId();
+            createdBy = ic.getCreatedBy();
+            // 코드 사용 처리
+            ic.setUsed(true);
+            ic.setUsedBy(loginId);
+            inviteCodeRepository.save(ic);
+        }
+
         User user = User.builder()
                 .loginId(loginId)
                 .password(passwordEncoder.encode(password))
-                .name(loginId)
+                .name(name)
                 .role(Role.REVIEWER)
                 .active(true)
+                .companyId(companyId)
+                .createdBy(createdBy)
                 .build();
 
         userRepository.save(user);

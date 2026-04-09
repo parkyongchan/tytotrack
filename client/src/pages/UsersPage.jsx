@@ -133,8 +133,10 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
   const handleEdit = (user) => {
     setEditUser(user);
-    setForm({ ...initForm, ...user, password: '', passwordConfirm: '',
-      assignedDeviceImeis: user.assignedDeviceImeis || [] });
+    setForm({
+      ...initForm, ...user, password: '', passwordConfirm: '',
+      assignedDeviceImeis: user.assignedDeviceImeis || []
+    });
     setDupChecked(true);
     setPwMsg('');
     setDupMsg({ text: '', ok: false });
@@ -151,7 +153,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
   const closeForm = () => {
     setShowForm(false); setEditUser(null);
-    setForm({...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : ''});
+    setForm({ ...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : '' });
     setPwMsg(''); setDupMsg({ text: '', ok: false }); setDupChecked(false);
   };
 
@@ -198,9 +200,13 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
           {t.title}
         </span>
         {myRole !== 'REVIEWER' && (
+          <InviteCodeBtn userCompanyId={user?.companyId} />
+        )}
+
+        {myRole !== 'REVIEWER' && (
           <button onClick={() => {
-            setForm({...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : ''});
-            setEditUser(null); setPwMsg(''); setDupMsg({text:'',ok:false}); setDupChecked(false);
+            setForm({ ...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : '' });
+            setEditUser(null); setPwMsg(''); setDupMsg({ text: '', ok: false }); setDupChecked(false);
             setShowForm(true);
           }}
             style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
@@ -247,28 +253,34 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
               {/* 권한 */}
               <div>
                 <label style={lbl}>{t.role} *</label>
-                <select style={inp} value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-                  {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                {myRole === 'REVIEWER' ? (
+                  <div style={{ ...inp, color: '#6b8fae', background: 'rgba(0,0,0,.5)' }}>{form.role}</div>
+                ) : (
+                  <select style={inp} value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
+                    {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                )}
               </div>
 
-              {/* 비밀번호 */}
-              <div>
-                <label style={lbl}>{t.pw} *</label>
-                <input style={inp} type="password" value={form.password}
-                  onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setPwMsg(''); }}
-                  placeholder="••••••••" />
-              </div>
-
-              {/* 비밀번호 확인 */}
-              <div>
-                <label style={lbl}>{t.pwConfirm} *</label>
-                <input style={{ ...inp, borderColor: pwMsg ? '#ef4444' : 'rgba(0,212,240,.25)' }} type="password"
-                  value={form.passwordConfirm}
-                  onChange={e => { setForm(p => ({ ...p, passwordConfirm: e.target.value })); setPwMsg(''); }}
-                  placeholder="••••••••" />
-                {pwMsg && <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '4px' }}>{pwMsg}</p>}
-              </div>
+              {/* 비밀번호 — REVIEWER는 본인 수정 시만, SUPER_ADMIN은 항상 */}
+              {(myRole === 'SUPER_ADMIN' || (editUser && editUser.loginId === localStorage.getItem('loginId'))) && (
+                <>
+                  <div>
+                    <label style={lbl}>{t.pw}</label>
+                    <input style={inp} type="password" value={form.password}
+                      onChange={e => { setForm(p => ({ ...p, password: e.target.value })); setPwMsg(''); }}
+                      placeholder="••••••••" />
+                  </div>
+                  <div>
+                    <label style={lbl}>{t.pwConfirm}</label>
+                    <input style={{ ...inp, borderColor: pwMsg ? '#ef4444' : 'rgba(0,212,240,.25)' }} type="password"
+                      value={form.passwordConfirm}
+                      onChange={e => { setForm(p => ({ ...p, passwordConfirm: e.target.value })); setPwMsg(''); }}
+                      placeholder="••••••••" />
+                    {pwMsg && <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '4px' }}>{pwMsg}</p>}
+                  </div>
+                </>
+              )}
 
               {/* 이름 */}
               <div>
@@ -295,95 +307,106 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
               </div>
 
               {/* Company ID */}
-              <div style={{ gridColumn:'1/-1' }}>
-                <label style={lbl}>COMPANY ID <span style={{ color:'#4b6483', fontSize:'9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
-                <input style={{ ...inp, background: myRole !== 'SUPER_ADMIN' ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: myRole !== 'SUPER_ADMIN' ? '#6b8fae' : '#fff' }}
-                  value={form.companyId || ''}
-                  onChange={e => myRole === 'SUPER_ADMIN' && setForm(p => ({ ...p, companyId: e.target.value }))}
-                  readOnly={myRole !== 'SUPER_ADMIN'}
-                  placeholder="예: company-A, tyto-korea 등 자유롭게 입력" />
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={lbl}>COMPANY ID <span style={{ color: '#4b6483', fontSize: '9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
+                {(() => {
+                  // SUPER_ADMIN: 항상 수정 가능
+                  // ADMIN: 최초 설정 후 수정 불가 (editUser의 companyId가 있으면 고정)
+                  // REVIEWER: 항상 수정 불가
+                  const isLocked = myRole === 'REVIEWER' || (myRole === 'ADMIN' && editUser?.companyId);
+                  return (
+                    <input style={{ ...inp, background: isLocked ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: isLocked ? '#6b8fae' : '#fff' }}
+                      value={form.companyId || ''}
+                      onChange={e => !isLocked && setForm(p => ({ ...p, companyId: e.target.value }))}
+                      readOnly={isLocked}
+                      placeholder="예: company-A, tyto-korea 등 자유롭게 입력" />
+                  );
+                })()}
               </div>
+              {/* REVIEWER가 타인 수정 시 아래 설정 숨김 */}
+              {(myRole !== 'REVIEWER' || (editUser && editUser.loginId === localStorage.getItem('loginId'))) && (
+                <>
+                  {/* Location Format */}
+                  <div>
+                    <label style={lbl}>{t.locFmt}</label>
+                    <select style={inp} value={form.locationFormat || 'DD'} onChange={e => setForm(p => ({ ...p, locationFormat: e.target.value }))}>
+                      <option value="DD">DD (Decimal Degrees) — 기본</option>
+                      <option value="DMS">DMS (Degrees Minutes Seconds)</option>
+                    </select>
+                  </div>
 
-              {/* Location Format */}
-              <div>
-                <label style={lbl}>{t.locFmt}</label>
-                <select style={inp} value={form.locationFormat || 'DD'} onChange={e => setForm(p => ({ ...p, locationFormat: e.target.value }))}>
-                  <option value="DD">DD (Decimal Degrees) — 기본</option>
-                  <option value="DMS">DMS (Degrees Minutes Seconds)</option>
-                </select>
-              </div>
+                  {/* Speed Unit */}
+                  <div>
+                    <label style={lbl}>{t.speedUnit}</label>
+                    <select style={inp} value={form.speedUnit || 'KN'} onChange={e => setForm(p => ({ ...p, speedUnit: e.target.value }))}>
+                      <option value="KN">Knots (kn) — 기본</option>
+                      <option value="KMH">km/h</option>
+                      <option value="MPH">Mile/h</option>
+                    </select>
+                  </div>
 
-              {/* Speed Unit */}
-              <div>
-                <label style={lbl}>{t.speedUnit}</label>
-                <select style={inp} value={form.speedUnit || 'KN'} onChange={e => setForm(p => ({ ...p, speedUnit: e.target.value }))}>
-                  <option value="KN">Knots (kn) — 기본</option>
-                  <option value="KMH">km/h</option>
-                  <option value="MPH">Mile/h</option>
-                </select>
-              </div>
+                  {/* GMT Zone */}
+                  <div>
+                    <label style={lbl}>{t.gmtZone}</label>
+                    <select style={inp} value={form.gmtZone ?? 9} onChange={e => setForm(p => ({ ...p, gmtZone: parseFloat(e.target.value) }))}>
+                      {GMT_ZONES.map(g => <option key={g.value} value={g.value}>{g.label}{g.value === 9 ? ' — 기본 (KST)' : ''}</option>)}
+                    </select>
+                  </div>
 
-              {/* GMT Zone */}
-              <div>
-                <label style={lbl}>{t.gmtZone}</label>
-                <select style={inp} value={form.gmtZone ?? 9} onChange={e => setForm(p => ({ ...p, gmtZone: parseFloat(e.target.value) }))}>
-                  {GMT_ZONES.map(g => <option key={g.value} value={g.value}>{g.label}{g.value === 9 ? ' — 기본 (KST)' : ''}</option>)}
-                </select>
-              </div>
+                  {/* Text View Refresh */}
+                  <div>
+                    <label style={lbl}>{t.tvRefresh}</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select style={{ ...inp, flex: 1 }} value={form.textViewRefresh ? 'use' : 'disuse'}
+                        onChange={e => setForm(p => ({ ...p, textViewRefresh: e.target.value === 'use' }))}>
+                        <option value="use">{t.use}</option>
+                        <option value="disuse">{t.disuse}</option>
+                      </select>
+                      <select style={{ ...inp, flex: 1 }} value={form.textViewRefreshMin || 1}
+                        onChange={e => setForm(p => ({ ...p, textViewRefreshMin: parseInt(e.target.value) }))}>
+                        {REFRESH_MINS.map(m => <option key={m} value={m}>{m}분{m === 1 ? ' — 기본' : ''}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+              {/* 할당 장비 (SUPER_ADMIN 제외) */}
+              {form.role !== 'SUPER_ADMIN' && devices.length > 0 && (
+                <DeviceAssignPanel
+                  devices={devices}
+                  selected={form.assignedDeviceImeis || []}
+                  onToggle={toggleDevice}
+                  myRole={myRole}
+                  lbl={lbl}
+                  label={t.assignedDevices}
+                />
+              )}
 
-              {/* Text View Refresh */}
-              <div>
-                <label style={lbl}>{t.tvRefresh}</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select style={{ ...inp, flex: 1 }} value={form.textViewRefresh ? 'use' : 'disuse'}
-                    onChange={e => setForm(p => ({ ...p, textViewRefresh: e.target.value === 'use' }))}>
-                    <option value="use">{t.use}</option>
-                    <option value="disuse">{t.disuse}</option>
-                  </select>
-                  <select style={{ ...inp, flex: 1 }} value={form.textViewRefreshMin || 1}
-                    onChange={e => setForm(p => ({ ...p, textViewRefreshMin: parseInt(e.target.value) }))}>
-                    {REFRESH_MINS.map(m => <option key={m} value={m}>{m}분{m === 1 ? ' — 기본' : ''}</option>)}
-                  </select>
+              {/* Securecard Reissue (수정 시만) */}
+              {editUser && (
+                <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,.2)', borderRadius: '8px', border: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '11px', color: '#6b8fae' }}>{t.securecard}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {securecardMsg && <span style={{ fontSize: '11px', color: '#10b981' }}>{securecardMsg}</span>}
+                    <button onClick={sendSecurecard}
+                      style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: '7px', color: '#fff', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+                      📧 {t.securecardBtn}
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              {/* 버튼 */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button onClick={closeForm}
+                  style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>
+                  {t.cancel}
+                </button>
+                <button onClick={handleSubmit}
+                  style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>
+                  {t.save}
+                </button>
               </div>
-            </div>
-
-            {/* 할당 장비 (SUPER_ADMIN 제외) */}
-            {form.role !== 'SUPER_ADMIN' && devices.length > 0 && (
-              <DeviceAssignPanel
-                devices={devices}
-                selected={form.assignedDeviceImeis || []}
-                onToggle={toggleDevice}
-                myRole={myRole}
-                lbl={lbl}
-                label={t.assignedDevices}
-              />
-            )}
-
-            {/* Securecard Reissue (수정 시만) */}
-            {editUser && (
-              <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(0,0,0,.2)', borderRadius: '8px', border: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', color: '#6b8fae' }}>{t.securecard}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {securecardMsg && <span style={{ fontSize: '11px', color: '#10b981' }}>{securecardMsg}</span>}
-                  <button onClick={sendSecurecard}
-                    style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: '7px', color: '#fff', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-                    📧 {t.securecardBtn}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 버튼 */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={closeForm}
-                style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>
-                {t.cancel}
-              </button>
-              <button onClick={handleSubmit}
-                style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>
-                {t.save}
-              </button>
             </div>
           </div>
         </div>
@@ -410,7 +433,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.04)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 style={{ borderBottom: '1px solid rgba(0,212,240,.05)' }}>
-                <td style={{ padding: '8px 12px', color: '#4b6483' }}>{(page-1)*PER_PAGE + i + 1}</td>
+                <td style={{ padding: '8px 12px', color: '#4b6483' }}>{(page - 1) * PER_PAGE + i + 1}</td>
                 <td style={{ padding: '8px 12px', color: '#7dd3fc', fontFamily: "'JetBrains Mono', monospace" }}>{u.loginId}</td>
                 <td style={{ padding: '8px 12px', color: '#fff', fontWeight: '700' }}>{u.name}</td>
                 <td style={{ padding: '8px 12px', color: '#6b8fae' }}>{u.email}</td>
@@ -419,22 +442,26 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                   GMT{u.gmtZone >= 0 ? '+' : ''}{u.gmtZone ?? 9}
                 </td>
                 <td style={{ padding: '8px 12px' }}>
-                  <span style={{ fontSize: '9px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
+                  <span style={{
+                    fontSize: '9px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
                     background: u.role === 'SUPER_ADMIN' ? 'rgba(239,68,68,.15)' : u.role === 'ADMIN' ? 'rgba(245,158,11,.15)' : 'rgba(59,130,246,.15)',
-                    color: u.role === 'SUPER_ADMIN' ? '#ef4444' : u.role === 'ADMIN' ? '#f59e0b' : '#60a5fa' }}>
+                    color: u.role === 'SUPER_ADMIN' ? '#ef4444' : u.role === 'ADMIN' ? '#f59e0b' : '#60a5fa'
+                  }}>
                     {u.role}
                   </span>
                 </td>
                 <td style={{ padding: '8px 12px' }}>
-                  <span style={{ fontSize: '9px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
+                  <span style={{
+                    fontSize: '9px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
                     background: u.active ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)',
-                    color: u.active ? '#10b981' : '#ef4444' }}>
+                    color: u.active ? '#10b981' : '#ef4444'
+                  }}>
                     {u.active ? t.active : t.inactive}
                   </span>
                 </td>
                 <td style={{ padding: '8px 12px' }}>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    {myRole !== 'REVIEWER' && (
+                    {(myRole !== 'REVIEWER' || u.loginId === localStorage.getItem('loginId')) && (
                       <button onClick={() => handleEdit(u)}
                         style={{ padding: '3px 10px', borderRadius: '5px', border: '1px solid rgba(0,212,240,.3)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', cursor: 'pointer', fontSize: '10px' }}>
                         {t.edit}
@@ -473,7 +500,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={() => setPage(1)} disabled={page === 1}
                 style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === 1 ? 0.3 : 1 }}>«</button>
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                 style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === 1 ? 0.3 : 1 }}>‹</button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                 <button key={p} onClick={() => setPage(p)}
@@ -481,7 +508,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                   {p}
                 </button>
               ))}
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === totalPages ? 0.3 : 1 }}>›</button>
               <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
                 style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === totalPages ? 0.3 : 1 }}>»</button>
@@ -565,5 +592,59 @@ function DeviceAssignPanel({ devices, selected, onToggle, myRole, lbl, label }) 
         )}
       </div>
     </div>
+  );
+}
+
+function InviteCodeBtn({ userCompanyId }) {
+  const [code, setCode] = useState('');
+  const [expires, setExpires] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [show, setShow] = useState(false);
+
+  const generate = async () => {
+    if (!userCompanyId) { alert('Company ID가 설정되지 않았습니다. 먼저 본인 계정에 Company ID를 설정해주세요.'); return; }
+    setLoading(true);
+    try {
+      const res = await api.post('/users/invite');
+      setCode(res.data.code);
+      setExpires(res.data.expiresAt?.slice(0, 10));
+      setShow(true);
+    } catch (e) { alert(e.response?.data?.message || '초대코드 생성 실패'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <>
+      <button onClick={generate} disabled={loading}
+        style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid rgba(139,92,246,.4)', background: 'rgba(139,92,246,.12)', color: '#8b5cf6', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
+        🔑 초대코드 생성
+      </button>
+
+      {show && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShow(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#1a2d48', border: '1px solid rgba(139,92,246,.3)', borderRadius: '16px', padding: '28px', width: '380px', textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', color: '#8b5cf6', fontWeight: '700', marginBottom: '16px', fontFamily: "'JetBrains Mono', monospace" }}>🔑 초대 코드 생성 완료</div>
+            <div style={{ background: 'rgba(0,0,0,.4)', borderRadius: '10px', padding: '16px', marginBottom: '14px' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '22px', fontWeight: '700', color: '#00d4f0', letterSpacing: '3px', marginBottom: '8px' }}>{code}</div>
+              <div style={{ fontSize: '11px', color: '#6b8fae' }}>만료일: {expires} (7일)</div>
+            </div>
+            <p style={{ fontSize: '11px', color: '#6b8fae', marginBottom: '16px', lineHeight: 1.6 }}>
+              이 코드를 회원가입할 사용자에게 전달해주세요.<br />
+              가입 시 초대코드 입력하면 자동으로 같은 회사로 연결됩니다.
+            </p>
+            <button onClick={() => { navigator.clipboard.writeText(code); }}
+              style={{ padding: '8px 20px', background: 'rgba(0,212,240,.12)', border: '1px solid #00d4f0', borderRadius: '8px', color: '#00d4f0', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginRight: '8px' }}>
+              📋 복사
+            </button>
+            <button onClick={() => setShow(false)}
+              style={{ padding: '8px 20px', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: '#6b8fae', fontSize: '12px', cursor: 'pointer' }}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

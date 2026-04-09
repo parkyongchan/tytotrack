@@ -81,6 +81,8 @@ export default function LoginPage({ onLogin }) {
 
   // 회원가입
   const [signupId, setSignupId] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteMsg, setInviteMsg] = useState({ text: '', ok: false });
   const [signupPw, setSignupPw] = useState('');
   const [signupPwC, setSignupPwC] = useState('');
   const [showSignupPw, setShowSignupPw] = useState(false);
@@ -154,7 +156,7 @@ export default function LoginPage({ onLogin }) {
   const doSignup = async () => {
     if (!signupReady) return;
     try {
-      await api.post('/auth/signup', { loginId: signupId, password: signupPw, role: 'REVIEWER' });
+      await api.post('/auth/signup', { loginId: signupId, password: signupPw, role: 'REVIEWER', inviteCode: inviteCode || '' });
       setSignupMsg(t.signupOk);
       setTimeout(() => { setTab('login'); setSignupMsg(''); }, 1500);
     } catch (err) {
@@ -310,6 +312,34 @@ export default function LoginPage({ onLogin }) {
                   </button>
                 </div>
                 {dupMsg.show && <p style={{ fontSize: '11px', marginTop: '5px', color: dupMsg.ok ? '#10b981' : '#ef4444' }}>{dupMsg.text}</p>}
+              </div>
+
+              {/* 초대 코드 */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,244,255,.38)', marginBottom: '7px' }}>
+                  INVITE CODE <span style={{ color: '#6b8fae', fontSize: '9px', textTransform: 'none' }}>(선택 - 회사 소속 시 입력)</span>
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <span style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px' }}>🔑</span>
+                    <input type="text" value={inviteCode}
+                      onChange={e => { setInviteCode(e.target.value.toUpperCase()); setInviteMsg({ text: '', ok: false }); }}
+                      placeholder="TYTO-XXXX-0000"
+                      style={{ ...inpStyle, borderColor: inviteMsg.text ? (inviteMsg.ok ? '#10b981' : '#ef4444') : 'rgba(255,255,255,.09)' }} />
+                  </div>
+                  <button type="button" onClick={async () => {
+                    if (!inviteCode) { setInviteMsg({ text: '코드를 입력해주세요.', ok: false }); return; }
+                    try {
+                      const res = await axios.get(`/api/users/invite/verify?code=${inviteCode}`);
+                      if (res.data.valid) setInviteMsg({ text: `✅ 유효한 코드 (${res.data.companyId})`, ok: true });
+                      else setInviteMsg({ text: res.data.message || '유효하지 않은 코드입니다.', ok: false });
+                    } catch (e) { setInviteMsg({ text: e.response?.data?.message || '오류가 발생했습니다.', ok: false }); }
+                  }}
+                    style={{ padding: '0 16px', background: 'rgba(0,212,240,.12)', border: '1px solid #00d4f0', borderRadius: '10px', color: '#00d4f0', fontFamily: "'Syne', sans-serif", fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    확인
+                  </button>
+                </div>
+                {inviteMsg.text && <p style={{ fontSize: '11px', marginTop: '5px', color: inviteMsg.ok ? '#10b981' : '#ef4444' }}>{inviteMsg.text}</p>}
               </div>
 
               {/* 비밀번호 */}

@@ -10,4 +10,6 @@ public interface RcvEventListRepository extends JpaRepository<RcvEventList, Long
 
     // IMEI별 명령 조회
     List<RcvEventList> findByImeiOrderByIdxDesc(String imei);
+
+    List<RcvEventList> findAllByOrderByRegDateAsc();
 }

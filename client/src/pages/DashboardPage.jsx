@@ -11,11 +11,15 @@ import TrackViewPopup from './TrackViewPopup';
 
 export default function DashboardPage({ user, onLogout }) {
   const [devices, setDevices] = useState([]);
+  const [allDevices, setAllDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [users, setUsers] = useState([]);
   const [activePage, setActivePage] = useState('dash');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mapPoints, setMapPoints] = useState([]);
+  const [trackDevice, setTrackDevice] = useState(null);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -24,23 +28,31 @@ export default function DashboardPage({ user, onLogout }) {
     } catch (err) { console.error('장비 조회 실패:', err); }
   }, []);
 
+  const fetchAllDevices = useCallback(async () => {
+    try {
+      const res = await api.get('/devices/all');
+      setAllDevices(Array.isArray(res.data) ? res.data : []);
+    } catch (_) { /* alias 조회 실패 무시 */ }
+  }, []);
+
   const fetchLocations = useCallback(async () => {
     try {
       const res = await api.get('/location/latest');
       const data = res.data;
       setLocations(Array.isArray(data) ? data : []);
-    } catch (err) { setLocations([]); }
+    } catch (_) { setLocations([]); }
   }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
       const res = await api.get('/users');
       setUsers(Array.isArray(res.data) ? res.data : []);
-    } catch (err) { }
+    } catch (_) { /* 무시 */ }
   }, []);
 
   useEffect(() => {
     fetchDevices();
+    fetchAllDevices();
     fetchLocations();
     fetchUsers();
   }, []);
@@ -105,7 +117,6 @@ export default function DashboardPage({ user, onLogout }) {
         const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
         const todayMsgs = msgs.filter(m => m.regDate?.startsWith(today));
         const lastRead = parseInt(localStorage.getItem('lastReadMsgId') || '0');
-        const lastMsgId = todayMsgs.length > 0 ? Math.max(...todayMsgs.map(m => m.id || 0)) : 0;
         const unread = todayMsgs.filter(m => (m.id || 0) > lastRead).length;
         setUnreadMsg(unread);
       } catch (e) { console.error('unread error', e); }
@@ -137,10 +148,13 @@ export default function DashboardPage({ user, onLogout }) {
       <header style={{ height: '58px', background: 'rgba(13,22,40,.97)', borderBottom: '1px solid rgba(0,212,240,.18)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', flexShrink: 0, zIndex: 1000 }}>
 
         {/* 햄버거 버튼 (모바일) */}
-        <button onClick={() => setSidebarOpen(p => !p)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', background: sidebarOpen ? 'rgba(239,68,68,.12)' : 'rgba(0,212,240,.1)', border: `1px solid ${sidebarOpen ? 'rgba(239,68,68,.4)' : 'rgba(0,212,240,.3)'}`, borderRadius: '9px', cursor: 'pointer', flexShrink: 0 }}
-          className="mob-only">
-          <span style={{ fontSize: '18px' }}>{sidebarOpen ? '✕' : '☰'}</span>
+        <button onClick={() => {
+          // 모바일: sidebarOpen, PC: sidebarCollapsed
+          if (window.innerWidth <= 768) setSidebarOpen(p => !p);
+          else setSidebarCollapsed(p => !p);
+        }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '9px', cursor: 'pointer', flexShrink: 0 }}>
+          <span style={{ fontSize: '18px' }}>☰</span>
         </button>
 
         {/* 로고 */}
@@ -199,19 +213,20 @@ export default function DashboardPage({ user, onLogout }) {
 
         {/* ── 사이드바 ── */}
         <aside style={{
-          width: '220px', flexShrink: 0,
+          width: sidebarCollapsed ? '0' : '220px',
+          flexShrink: 0,
           background: 'linear-gradient(180deg,#192d48 0%,#0d1628 100%)',
-          borderRight: '1px solid rgba(0,212,240,.18)',
+          borderRight: sidebarCollapsed ? 'none' : '1px solid rgba(0,212,240,.18)',
           display: 'flex', flexDirection: 'column',
           position: 'relative', zIndex: 160,
-          // 모바일: absolute + 슬라이드
-          transition: 'transform .3s cubic-bezier(0.16,1,0.3,1)',
+          overflow: 'hidden',
+          transition: 'width .3s cubic-bezier(0.16,1,0.3,1)',
         }}
           className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
 
           <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto' }}>
             {menuItems.map(item => (
-              <div key={item.id} onClick={() => { handleMenuClick(item.id); if (item.id === 'chat') { const msgs = []; localStorage.setItem('lastReadMsgId', String(Math.max(...[0]))); setUnreadMsg(0); } }}
+              <div key={item.id} onClick={() => { handleMenuClick(item.id); if (item.id === 'chat') { localStorage.setItem('lastReadMsgId', String(Date.now())); setUnreadMsg(0); } }}
                 style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '12px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: activePage === item.id ? '#00d4f0' : 'rgba(240,248,255,.5)', background: activePage === item.id ? 'rgba(0,212,240,.1)' : 'transparent', borderLeft: activePage === item.id ? '3px solid #00d4f0' : '3px solid transparent', transition: 'all .2s' }}>
                 <span style={{ fontSize: '17px' }}>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.label}</span>
@@ -246,13 +261,13 @@ export default function DashboardPage({ user, onLogout }) {
         {/* ── 메인 콘텐츠 ── */}
         <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, position: 'relative' }}>
           {activePage === 'dash' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'min(220px, 26%) 1fr', gridTemplateRows: '1fr 160px', gap: '8px', padding: '8px', flex: 1, overflow: 'hidden' }}
+            <div style={{ display: 'grid', gridTemplateColumns: 'min(330px, 36%) 1fr', gridTemplateRows: '1fr 160px', gap: '8px', padding: '8px', flex: 1, overflow: 'hidden' }}
               className="dash-grid">
-              <DevicePanel devices={devicesWithLocation} onRefresh={() => { fetchDevices(); fetchLocations(); }} onNavigate={setActivePage} />
+              <DevicePanel devices={devicesWithLocation} allDevices={allDevices} onRefresh={() => { fetchDevices(); fetchLocations(); }} onNavigate={setActivePage} onMapDataChange={setMapPoints} />
 
               {/* 지도 */}
               <div style={{ background: 'rgba(13,26,46,.85)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden' }}>
-                <MapView devices={devicesWithLocation} />
+                <MapView devices={devicesWithLocation} mapPoints={mapPoints} onOpenTrack={setTrackDevice} />
               </div>
 
               {/* 이벤트 로그 */}
@@ -304,6 +319,15 @@ export default function DashboardPage({ user, onLogout }) {
           )}
 
           {activePage === 'devices' && <DevicesPage devices={devicesWithLocation} onRefresh={fetchDevices} />}
+          {trackDevice && (
+            <TrackViewPopup
+              device={trackDevice}
+              imei={trackDevice.imei}
+              alias={trackDevice.alias}
+              defaultPeriod="30일"
+              onClose={() => setTrackDevice(null)}
+            />
+          )}
           {activePage === 'tvloc' && <TextViewLocation devices={devices} />}
           {activePage === 'chat' && (
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -336,6 +360,7 @@ export default function DashboardPage({ user, onLogout }) {
         .mob-only { display: none !important; }
         .pc-only { display: flex !important; }
         .sidebar { position: relative; transform: none; }
+        .sidebar-collapsed { width: 0 !important; overflow: hidden !important; border: none !important; }
 
         /* 모바일 (768px 이하) */
         @media (max-width: 768px) {
@@ -370,7 +395,7 @@ export default function DashboardPage({ user, onLogout }) {
   );
 }
 
-function DevicePanel({ devices, onRefresh, onNavigate }) {
+function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDataChange }) {
   const lang = localStorage.getItem('lang') || 'ko';
   const QUERY_LABEL = { ko: '조회', en: 'Search', ja: '検索' };
   const RESET_LABEL = { ko: '초기화', en: 'Reset', ja: 'リセット' };
@@ -409,6 +434,16 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
   ];
 
   // 날짜 범위 내 전체 수신 데이터 조회
+  const updateMapPoints = (data, tab) => {
+    const filtered = data.filter(d =>
+      tab === 'sos' ? d.eventcode === '4' :
+        tab === 'track' ? d.eventcode === '1' :
+          tab === 'all' ? (d.eventcode === '4' || d.eventcode === '1') :
+            false
+    );
+    if (onMapDataChange) onMapDataChange(filtered);
+  };
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
@@ -417,7 +452,9 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
       const start = startStr + '00';
       const end = endStr + '99';
       const res = await api.get(`/location/range?start=${start}&end=${end}`);
-      setAllData(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setAllData(data);
+      updateMapPoints(data, activeTab);
     } catch { setAllData([]); }
     finally { setLoading(false); }
   };
@@ -454,8 +491,10 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const getAlias = (imei) => {
-    const d = devices.find(d => d.imei === imei);
-    return d?.alias || imei;
+    // 활성 장비 먼저, 없으면 전체(삭제 포함) 에서 찾기
+    const d = devices.find(d => d.imei === imei)
+      || allDevices.find(d => d.imei === imei);
+    return d?.alias || `···${imei?.slice(-6)}`;
   };
 
   const getTypeInfo = (eventcode) => {
@@ -469,10 +508,6 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
     }
   };
 
-  const formatDate = (reg) => {
-    if (!reg || reg.length < 12) return '';
-    return `${reg.slice(0, 4)}-${reg.slice(4, 6)}-${reg.slice(6, 8)} ${reg.slice(8, 10)}:${reg.slice(10, 12)}`;
-  };
 
   const handleCardClick = (item) => {
     if (item.eventcode === '4' || item.eventcode === '1') {
@@ -492,7 +527,7 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
 
         {/* 헤더 */}
         <div style={{ padding: '9px 13px', borderBottom: '1px solid rgba(0,212,240,.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>RECEIVED DATA LIST</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>RECEIVED DATA LIST</span>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={fetchAllData} style={{ fontSize: '12px', background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer' }}>↻</button>
           </div>
@@ -506,7 +541,7 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
           ].map((picker, i) => (
             <div key={i} style={{ position: 'relative', flex: 1 }}>
               <button onClick={() => picker.setShow(p => !p)}
-                style={{ width: '100%', padding: '5px 8px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.25)', borderRadius: '6px', color: picker.value ? '#00d4f0' : '#6b8fae', fontSize: '9px', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", textAlign: 'left' }}>
+                style={{ width: '100%', padding: '5px 8px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.25)', borderRadius: '6px', color: picker.value ? '#00d4f0' : '#6b8fae', fontSize: '11px', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", textAlign: 'left' }}>
                 {picker.value ? picker.value.replace('T', ' ') : (i === 0 ? 'Start' : 'End')}
               </button>
               {picker.show && (
@@ -552,12 +587,14 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
                 const startStr = s.replace('T', '').replace(/-|:/g, '').slice(0, 12) + '00';
                 const endStr = e.replace('T', '').replace(/-|:/g, '').slice(0, 12) + '99';
                 const res = await api.get(`/location/range?start=${startStr}&end=${endStr}`);
-                setAllData(Array.isArray(res.data) ? res.data : []);
+                const data = Array.isArray(res.data) ? res.data : [];
+                setAllData(data);
                 setPage(1);
+                updateMapPoints(data, activeTab);
               } catch { setAllData([]); }
               finally { setLoading(false); }
             }}
-              style={{ padding: '3px 7px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '8px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap' }}
+              style={{ padding: '3px 7px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,212,240,.08)'}>
               {q.label}
@@ -575,8 +612,8 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
         {/* 탭 */}
         <div style={{ padding: '5px 13px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
           {tabs.map(t => (
-            <button key={t.id} onClick={() => { setActiveTab(t.id); setPage(1); }}
-              style={{ padding: '3px 8px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '9px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace", background: activeTab === t.id ? t.color : 'rgba(255,255,255,.06)', color: activeTab === t.id ? '#fff' : '#6b8fae', transition: 'all .2s' }}>
+            <button key={t.id} onClick={() => { setActiveTab(t.id); setPage(1); updateMapPoints(allData, t.id); }}
+              style={{ padding: '3px 8px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace", background: activeTab === t.id ? t.color : 'rgba(255,255,255,.06)', color: activeTab === t.id ? '#fff' : '#6b8fae', transition: 'all .2s' }}>
               {t.label}
             </button>
           ))}
@@ -606,17 +643,17 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
 
                 {/* 1줄: 타입 + 애칭 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '7px', fontWeight: '700', padding: '1px 4px', borderRadius: '3px', background: type.bg, color: type.color, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                  <span style={{ fontSize: '9px', fontWeight: '700', padding: '1px 4px', borderRadius: '3px', background: type.bg, color: type.color, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
                     {type.label}
                   </span>
-                  <span style={{ fontSize: '10px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {getAlias(d.imei)}
                   </span>
                 </div>
 
                 {/* 2줄: IMEI + 위경도/페이로드 + 날짜시간 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '7px', fontFamily: "'JetBrains Mono', monospace" }}>
-                  <span style={{ color: '#4b6483', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>{d.imei}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ color: '#4b6483', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px', fontSize: '11px' }}>{d.imei}</span>
                   {isShort ? (
                     <span style={{ color: '#a78bfa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                       {(d.memo || d.can || d.title || '')?.slice(0, 12)}
@@ -640,7 +677,7 @@ function DevicePanel({ devices, onRefresh, onNavigate }) {
         {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div style={{ padding: '7px 13px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: '12px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
               {filtered.length}건 {page}/{totalPages}p
             </span>
             <div style={{ display: 'flex', gap: '4px' }}>

@@ -54,7 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/location/range").permitAll()
                         .requestMatchers("/api/profiles/**").permitAll()
                         .requestMatchers("/api/users/**").permitAll()
-                        .requestMatchers("/api/chat/**").permitAll()
+                        .requestMatchers("/api/auth/invite/verify").permitAll()
+                        .requestMatchers("/api/chat/general").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

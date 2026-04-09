@@ -17,6 +17,7 @@ public class UserController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final server.security.JwtUtil jwtUtil;
+    private final InviteCodeRepository inviteCodeRepository;
 
     // 전체 사용자 조회
     @GetMapping
@@ -46,15 +47,25 @@ public class UserController {
                     .toList();
         }
 
-        return ResponseEntity.ok(users.stream().map(u -> Map.of(
-                "id", u.getId(),
-                "loginId", u.getLoginId(),
-                "name", u.getName(),
-                "role", u.getRole().name(),
-                "email", u.getEmail() != null ? u.getEmail() : "",
-                "country", u.getCountry() != null ? u.getCountry() : "",
-                "active", u.getActive()
-        )).toList());
+        return ResponseEntity.ok(users.stream().map(u -> {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", u.getId());
+            map.put("loginId", u.getLoginId());
+            map.put("name", u.getName());
+            map.put("role", u.getRole().name());
+            map.put("email", u.getEmail() != null ? u.getEmail() : "");
+            map.put("country", u.getCountry() != null ? u.getCountry() : "");
+            map.put("active", u.getActive());
+            map.put("companyId", u.getCompanyId() != null ? u.getCompanyId() : "");
+            map.put("gmtZone", u.getGmtZone() != null ? u.getGmtZone() : 9);
+            map.put("locationFormat", u.getLocationFormat() != null ? u.getLocationFormat() : "DD");
+            map.put("speedUnit", u.getSpeedUnit() != null ? u.getSpeedUnit() : "KN");
+            map.put("textViewRefresh", u.getTextViewRefresh() != null ? u.getTextViewRefresh() : true);
+            map.put("textViewRefreshMin", u.getTextViewRefreshMin() != null ? u.getTextViewRefreshMin() : 1);
+            map.put("phone", u.getPhone() != null ? u.getPhone() : "");
+            map.put("assignedDeviceImeis", u.getAssignedDeviceImeis() != null ? u.getAssignedDeviceImeis() : new java.util.ArrayList<>());
+            return map;
+        }).toList());
     }
     // 아이디 중복 체크
     @GetMapping("/check")
@@ -162,5 +173,53 @@ public class UserController {
                     return ResponseEntity.ok(Map.of("message", user.getActive() ? "활성화 완료" : "중지 완료", "active", user.getActive()));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 초대 코드 생성 (Admin 이상)
+    @PostMapping("/invite")
+    public ResponseEntity<?> createInviteCode(
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String loginId = jwtUtil.getLoginId(token);
+
+        User currentUser = userRepository.findByLoginId(loginId).orElse(null);
+        if (currentUser == null) return ResponseEntity.badRequest().body(Map.of("message", "사용자 없음"));
+
+        String companyId = currentUser.getCompanyId();
+        if (companyId == null || companyId.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Company ID가 설정되지 않았습니다."));
+        }
+
+        // 코드 생성
+        String code = "TYTO-" + loginId.toUpperCase().substring(0, Math.min(4, loginId.length()))
+                + "-" + String.format("%04d", (int)(Math.random() * 10000));
+
+        InviteCode inviteCode = InviteCode.builder()
+                .code(code)
+                .companyId(companyId)
+                .createdBy(loginId)
+                .used(false)
+                .expiresAt(java.time.LocalDateTime.now().plusDays(7))
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+
+        inviteCodeRepository.save(inviteCode);
+        return ResponseEntity.ok(Map.of(
+                "code", code,
+                "expiresAt", inviteCode.getExpiresAt().toString(),
+                "companyId", companyId
+        ));
+    }
+
+    // 초대 코드 검증
+    @GetMapping("/invite/verify")
+    public ResponseEntity<?> verifyInviteCode(@RequestParam String code) {
+        return inviteCodeRepository.findByCode(code)
+                .map(ic -> {
+                    if (ic.getUsed()) return ResponseEntity.badRequest().body(Map.of("message", "이미 사용된 코드입니다.", "valid", false));
+                    if (ic.getExpiresAt().isBefore(java.time.LocalDateTime.now())) return ResponseEntity.badRequest().body(Map.of("message", "만료된 코드입니다.", "valid", false));
+                    return ResponseEntity.ok(Map.of("valid", true, "companyId", ic.getCompanyId(), "createdBy", ic.getCreatedBy()));
+                })
+                .orElse(ResponseEntity.badRequest().body(Map.of("message", "유효하지 않은 코드입니다.", "valid", false)));
     }
 }

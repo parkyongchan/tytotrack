@@ -29,4 +29,9 @@ public interface SndEventListRepository extends JpaRepository<SndEventList, Long
 
     @Query("SELECT s FROM SndEventList s WHERE s.regDate >= :start AND s.regDate <= :end ORDER BY s.regDate DESC")
     List<SndEventList> findByRegDateRange(@Param("start") String start, @Param("end") String end);
+
+    List<SndEventList> findByEventcodeOrderByRegDateAsc(String eventcode);
+
+    @Query("SELECT s FROM SndEventList s WHERE s.title IS NOT NULL OR s.memo IS NOT NULL ORDER BY s.regDate ASC")
+    List<SndEventList> findMessagesWithContent();
 }
