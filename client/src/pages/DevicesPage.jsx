@@ -1,5 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/axiosConfig';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import OSM from 'ol/source/OSM';
+import { fromLonLat, toLonLat } from 'ol/proj';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import LineString from 'ol/geom/LineString';
+import Polygon from 'ol/geom/Polygon';
+import { Style, Fill, Stroke, Circle as CircleStyle, Text } from 'ol/style';
+import 'ol/ol.css';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
 const lang = localStorage.getItem('lang') || 'ko';
@@ -104,8 +117,9 @@ export default function DevicesPage({ devices, onRefresh }) {
           </button>
         )}
 
-        {/* GEO Fence — 모든 권한 */}
-        <button onClick={() => setShowGeo(true)} style={btnStyle('#10b981')}>
+        {/* GEO Fence — 1개 선택 시만 활성화 */}
+        <button onClick={() => selected.length === 1 ? setShowGeo(true) : alert('장비 1개를 선택해주세요.')}
+          style={btnStyle('#10b981', selected.length !== 1)}>
           🌐 GEO Fence
         </button>
 
@@ -254,6 +268,7 @@ export default function DevicesPage({ devices, onRefresh }) {
       {showGeo && (
         <GeoFencePanel
           devices={devices}
+          selectedDevice={selectedDevices.length === 1 ? selectedDevices[0] : null}
           onClose={() => setShowGeo(false)}
         />
       )}
@@ -674,49 +689,171 @@ function ProfilePopup({ onClose }) {
    장비 설정 패널
 ══════════════════════════════════════ */
 function DeviceSettingPanel({ device, onClose }) {
+  const [verData, setVerData] = useState(null); // DB에서 가져온 VER 원본
+  const [original, setOriginal] = useState(null); // 원본 설정값
   const [settings, setSettings] = useState({
-    mode: 'C', event: 'ON', timeSelect: '', timeInput: '00000',
-    distSelect: '', distInput: '00000', canUse: false, canGps: false,
-    canTime: '00000', canGpsTime: '00000', sosUse: false, recipient: '', geoService: false,
+    mode: 'C', event: 'ON',
+    timeInput: '0000', distInput: '0000',
+    canUse: false, canGps: false,
+    canTime: '0000', canGpsTime: '0000',
+    sosUse: false, recipient: '', geoService: false,
   });
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('');
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'waiting', 'success', 'failed'
+  const [retryCount, setRetryCount] = useState(0);
   const [callDisabled, setCallDisabled] = useState(false);
-  const [changed, setChanged] = useState(false);
+  const MAX_RETRY = 3;
 
-  const set = (key, val) => { setSettings(p => ({ ...p, [key]: val })); setChanged(true); };
+  // VER 파싱
+  const parseVer = (verStr) => {
+    if (!verStr) return null;
+    const get = (key) => {
+      const m = verStr.match(new RegExp(`${key}\\(([^)]+)\\)`));
+      return m ? m[1] : null;
+    };
+    const verNum = verStr.split(':')[0] || '-';
+    return {
+      verNum,
+      mode: get('Mode') || 'C',
+      time: (get('Time') || '0').padStart(4, '0'),
+      dist: (get('Dist') || '0').padStart(4, '0'),
+      addr: get('Addr') || '',
+      event: get('Event') || 'OFF',
+      can: get('CAN') || '0',   // 0=off, 1=can, 2=can+gps
+      canTime: (get('CAN-Time') || '0').padStart(4, '0'),
+      sos: get('SOS') || 'OFF',
+      gps: get('GPS') || '0',
+      signal: get('SIGNAL') || '0',
+    };
+  };
 
-  const toggleStyle = (on) => ({
-    padding: '5px 16px', borderRadius: '6px', border: `1px solid ${on ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)'}`,
-    background: on ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)',
-    color: on ? '#10b981' : '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700',
-  });
+  const gpsLabel = (v) => {
+    const map = { '0': '없음', '1': '약함', '2': '보통', '3': '최상' };
+    return map[v] || v;
+  };
+  const signalLabel = (v) => {
+    const map = { '0': '없음', '1': '매우약함', '2': '보통', '3': '정상', '4': '양호', '5': '최상' };
+    return map[v] || v;
+  };
 
-  const inp = { padding: '7px 10px', borderRadius: '6px', border: '1px solid rgba(0,212,240,.25)', background: 'rgba(0,0,0,.3)', color: '#fff', fontSize: '12px', outline: 'none', fontFamily: "'JetBrains Mono', monospace" };
+  // 최신 VER 데이터 조회
+  useEffect(() => {
+    const fetchVer = async () => {
+      try {
+        const res = await api.get(`/location/${device.imei}`);
+        const list = Array.isArray(res.data) ? res.data : [];
+        const verItem = list.find(d => d.ver && d.ver.trim() !== '');
+        if (verItem?.ver) {
+          const parsed = parseVer(verItem.ver);
+          setVerData(parsed);
+          const init = {
+            mode: parsed.mode,
+            event: parsed.event,
+            timeInput: parsed.time,
+            distInput: parsed.dist,
+            canUse: parsed.can === '1' || parsed.can === '2',
+            canGps: parsed.can === '2',
+            canTime: parsed.canTime,
+            canGpsTime: parsed.canTime,
+            sosUse: parsed.sos === 'ON',
+            recipient: parsed.addr,
+            geoService: false,
+          };
+          setSettings(init);
+          setOriginal(init);
+        }
+      } catch (_) { /* 무시 */ }
+    };
+    fetchVer();
+  }, [device.imei]);
 
-  const handleSave = async () => {
-    if (!changed) return;
+  const set = (key, val) => setSettings(p => ({ ...p, [key]: val }));
+
+  // 변경된 값만 커맨드 생성
+  const buildCommand = () => {
+    if (!original) return null;
+    const cmds = [];
+    if (settings.mode !== original.mode) cmds.push(settings.mode);
+    if (settings.timeInput !== original.timeInput) cmds.push(`T${settings.timeInput}`);
+    if (settings.distInput !== original.distInput) cmds.push(`D${settings.distInput}`);
+    if (settings.recipient !== original.recipient) {
+      const r = settings.recipient.replace(/\D/g, '');
+      if (r.length === 15) cmds.push(`M${r}`);
+      else if (r.length === 10) cmds.push(`U${r}`);
+    }
+    if (settings.event !== original.event) cmds.push(settings.event === 'ON' ? 'E' : 'e');
+    // CAN
+    const origCan = original.canUse ? (original.canGps ? '2' : '1') : '0';
+    const newCan = settings.canUse ? (settings.canGps ? '2' : '1') : '0';
+    if (newCan !== origCan) {
+      if (newCan === '0') cmds.push('a');
+      else if (newCan === '1') { cmds.push('A'); cmds.push(`A${settings.canTime}`); }
+      else if (newCan === '2') { cmds.push('A'); cmds.push(`a${settings.canGpsTime}`); }
+    } else {
+      if (newCan === '1' && settings.canTime !== original.canTime) cmds.push(`A${settings.canTime}`);
+      if (newCan === '2' && settings.canGpsTime !== original.canGpsTime) cmds.push(`a${settings.canGpsTime}`);
+    }
+    return cmds.length > 0 ? cmds.join(',') : null;
+  };
+
+  const isChanged = () => {
+    if (!original) return false;
+    return JSON.stringify(settings) !== JSON.stringify(original);
+  };
+
+  const doSave = async () => {
+    const cmd = buildCommand();
+    if (!cmd) { alert('변경된 항목이 없습니다.'); return; }
     setSaving(true); setSaveStatus('saving');
     try {
-      const cmd = `MODE(${settings.mode}),TIME(${settings.timeInput}),DIST(${settings.distInput}),Event(${settings.event}),CAN(${settings.canUse ? 'ON' : 'OFF'}),CAN-Time(${settings.canTime}),SOS(${settings.sosUse ? 'ON' : 'OFF'}),ADDR(${settings.recipient || '000000000000000'}),GEO(${settings.geoService ? 'ON' : 'OFF'})`;
-      await api.post('/location/command', { imei: device.imei, text: cmd });
+      await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' });
       setSaveStatus('waiting');
-      // 10분 후 타임아웃
-      setTimeout(() => { if (saveStatus === 'waiting') setSaveStatus('failed'); }, 600000);
-      setChanged(false);
-    } catch { setSaveStatus('failed'); }
-    finally { setSaving(false); }
+      setTimeout(() => {
+        setSaveStatus(prev => prev === 'waiting' ? 'failed' : prev);
+      }, 600000);
+    } catch (_) {
+      setSaveStatus('failed');
+    } finally { setSaving(false); }
+  };
+
+  const handleSave = async () => {
+    if (retryCount >= MAX_RETRY) { alert('재전송 횟수(3회)를 초과했습니다. 저장이 비활성화됩니다.'); return; }
+    await doSave();
+  };
+
+  const handleRetry = async () => {
+    if (retryCount >= MAX_RETRY) { alert('재전송 횟수(3회)를 초과했습니다.'); return; }
+    setRetryCount(p => p + 1);
+    await doSave();
   };
 
   const handleCall = async (cmd) => {
     setCallDisabled(true);
-    try { await api.post('/location/command', { imei: device.imei, text: cmd }); }
-    catch { }
+    try { await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' }); }
+    catch (_) { /* 무시 */ }
     setTimeout(() => setCallDisabled(false), 60000);
+  };
+
+  const toggleStyle = (on, disabled = false) => ({
+    padding: '5px 16px', borderRadius: '6px',
+    border: `1px solid ${on ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)'}`,
+    background: on ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)',
+    color: on ? '#10b981' : '#ef4444',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '12px', fontWeight: '700', opacity: disabled ? 0.4 : 1,
+  });
+
+  const inp = {
+    padding: '7px 10px', borderRadius: '6px',
+    border: '1px solid rgba(0,212,240,.25)', background: 'rgba(0,0,0,.3)',
+    color: '#fff', fontSize: '12px', outline: 'none',
+    fontFamily: "'JetBrains Mono', monospace",
   };
 
   const rowStyle = { display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.06)' };
   const lblStyle = { width: '200px', fontSize: '12px', color: '#a0b4c8', flexShrink: 0 };
+
+  const canSave = isChanged() && !saving && retryCount < MAX_RETRY;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -730,6 +867,14 @@ function DeviceSettingPanel({ device, onClose }) {
             <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>IMEI: {device.imei} Type: {device.type}</span>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
           </div>
+        </div>
+
+        {/* Firmware 버전 표시 */}
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(239,68,68,.05)' }}>
+          <span style={{ fontSize: '11px', fontWeight: '700', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>Firmware</span>
+          <span style={{ fontSize: '16px', fontWeight: '700', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
+            {verData ? verData.verNum : '— VER-Call 후 표시됩니다.'}
+          </span>
         </div>
 
         {/* 설정 항목들 */}
@@ -754,67 +899,81 @@ function DeviceSettingPanel({ device, onClose }) {
             </select>
           </div>
 
-          {/* 주기 Time */}
+          {/* 주기 Time — 4자리 */}
           <div style={rowStyle}>
             <span style={lblStyle}>주기 Time <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select value={settings.timeSelect} onChange={e => { set('timeSelect', e.target.value); if (e.target.value) set('timeInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
+              <select onChange={e => { if (e.target.value) set('timeInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
                 <option value="">-- 선택 --</option>
-                {['00001', '00005', '00010', '00030', '00060'].map(v => <option key={v} value={v}>{parseInt(v)}분</option>)}
+                {['0001','0005','0010','0030','0060'].map(v => <option key={v} value={v}>{parseInt(v)}분</option>)}
               </select>
-              <input style={{ ...inp, width: '90px' }} value={settings.timeInput} maxLength={5}
-                onChange={e => set('timeInput', e.target.value.replace(/\D/g, '').padStart(5, '0').slice(-5))} />
-              <span style={{ fontSize: '10px', color: '#4b6483' }}>5자리</span>
+              <input style={{ ...inp, width: '80px' }} value={settings.timeInput} maxLength={4}
+                onChange={e => set('timeInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
             </div>
           </div>
 
-          {/* 주기 Distance */}
+          {/* 주기 Distance — 4자리 */}
           <div style={rowStyle}>
             <span style={lblStyle}>주기 Distance <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:10m)</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select value={settings.distSelect} onChange={e => { set('distSelect', e.target.value); if (e.target.value) set('distInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
+              <select onChange={e => { if (e.target.value) set('distInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
                 <option value="">-- 선택 --</option>
-                {['00010', '00050', '00100', '00500', '01000'].map(v => <option key={v} value={v}>{parseInt(v) * 10}m</option>)}
+                {['0010','0050','0100','0500','1000'].map(v => <option key={v} value={v}>{parseInt(v) * 10}m</option>)}
               </select>
-              <input style={{ ...inp, width: '90px' }} value={settings.distInput} maxLength={5}
-                onChange={e => set('distInput', e.target.value.replace(/\D/g, '').padStart(5, '0').slice(-5))} />
-              <span style={{ fontSize: '10px', color: '#4b6483' }}>5자리</span>
+              <input style={{ ...inp, width: '80px' }} value={settings.distInput} maxLength={4}
+                onChange={e => set('distInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
             </div>
           </div>
 
           {/* CAN 사용 여부 */}
-          <div style={rowStyle}>
+          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', border: '1px solid rgba(16,185,129,.15)', borderRadius: '6px', margin: '4px 8px' }}>
             <span style={lblStyle}>CAN 사용 여부</span>
-            <button style={toggleStyle(settings.canUse)} onClick={() => set('canUse', !settings.canUse)}>
-              {settings.canUse ? 'ON' : 'OFF'}
+            <button style={toggleStyle(settings.canUse && !settings.canGps)}
+              onClick={() => {
+                if (settings.canGps) return; // CAN+GPS ON이면 잠금
+                const newVal = !settings.canUse;
+                set('canUse', newVal);
+                if (!newVal) set('canGps', false);
+              }}>
+              {settings.canUse && !settings.canGps ? 'ON' : 'OFF'}
             </button>
           </div>
 
-          {/* CAN 사용여부 (CAN+GPS) */}
-          <div style={rowStyle}>
-            <span style={lblStyle}>CAN 사용여부 (CAN+GPS)</span>
-            <button style={toggleStyle(settings.canGps)} onClick={() => set('canGps', !settings.canGps)}>
+          {/* CAN 시간 설정 — CAN ON && CAN+GPS OFF 시 활성화 */}
+          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', opacity: settings.canUse && !settings.canGps ? 1 : 0.35 }}>
+            <span style={lblStyle}>CAN 시간 설정 <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input style={{ ...inp, width: '80px' }} value={settings.canTime} maxLength={4}
+                disabled={!settings.canUse || settings.canGps}
+                onChange={e => set('canTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
+            </div>
+          </div>
+
+          {/* CAN+GPS 사용 여부 */}
+          <div style={{ ...rowStyle, border: '1px solid rgba(107,143,174,.2)', borderRadius: '6px', margin: '4px 8px' }}>
+            <span style={lblStyle}>CAN+GPS 사용여부</span>
+            <button style={toggleStyle(settings.canGps, settings.canUse && !settings.canGps)}
+              onClick={() => {
+                if (settings.canUse && !settings.canGps) return; // CAN ON이면 잠금
+                const newVal = !settings.canGps;
+                set('canGps', newVal);
+                if (newVal) set('canUse', true); // CAN+GPS ON 시 canUse도 true
+              }}>
               {settings.canGps ? 'ON' : 'OFF'}
             </button>
           </div>
 
-          {/* CAN 시간 설정 */}
-          <div style={rowStyle}>
-            <span style={lblStyle}>CAN 시간 설정 <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input style={{ ...inp, width: '90px' }} value={settings.canTime} maxLength={5}
-                onChange={e => set('canTime', e.target.value.replace(/\D/g, '').padStart(5, '0').slice(-5))} />
-              <span style={{ fontSize: '10px', color: '#4b6483' }}>5자리</span>
-            </div>
-          </div>
-
-          {/* CAN+GPS 시간 설정 */}
-          <div style={rowStyle}>
+          {/* CAN+GPS 시간 설정 — CAN+GPS ON 시 활성화 */}
+          <div style={{ ...rowStyle, opacity: settings.canGps ? 1 : 0.35 }}>
             <span style={lblStyle}>CAN+GPS 시간 설정 <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input style={{ ...inp, width: '90px' }} value={settings.canGpsTime} maxLength={5}
-                onChange={e => set('canGpsTime', e.target.value.replace(/\D/g, '').padStart(5, '0').slice(-5))} />
-              <span style={{ fontSize: '10px', color: '#4b6483' }}>5자리</span>
+              <input style={{ ...inp, width: '80px' }} value={settings.canGpsTime} maxLength={4}
+                disabled={!settings.canGps}
+                onChange={e => set('canGpsTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
             </div>
           </div>
 
@@ -829,8 +988,19 @@ function DeviceSettingPanel({ device, onClose }) {
           {/* 수신처 */}
           <div style={rowStyle}>
             <span style={lblStyle}>수신처 <span style={{ fontSize: '9px', color: '#4b6483' }}>(유닛코드/IMEI)</span></span>
-            <input style={{ ...inp, width: '280px' }} value={settings.recipient}
-              onChange={e => set('recipient', e.target.value)} placeholder="상대방 유닛코드 또는 IMEI" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <input style={{ ...inp, width: '280px' }} value={settings.recipient}
+                onChange={e => set('recipient', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                placeholder="10자리(유닛코드) 또는 15자리(IMEI)" />
+              {settings.recipient && settings.recipient.length !== 10 && settings.recipient.length !== 15 && (
+                <span style={{ fontSize: '9px', color: '#ef4444' }}>10자리 또는 15자리만 가능합니다.</span>
+              )}
+              {settings.recipient && (settings.recipient.length === 10 || settings.recipient.length === 15) && (
+                <span style={{ fontSize: '9px', color: '#10b981' }}>
+                  {settings.recipient.length === 15 ? '✓ IMEI (15자리)' : '✓ 유닛코드 (10자리)'}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* GEO Service */}
@@ -840,23 +1010,78 @@ function DeviceSettingPanel({ device, onClose }) {
               {settings.geoService ? 'ON' : 'OFF'}
             </button>
           </div>
+
+          {/* GPS 표시 — 읽기전용 */}
+          <div style={{ ...rowStyle, background: 'rgba(245,158,11,.04)' }}>
+            <span style={{ ...lblStyle, color: '#fbbf24', fontWeight: '700' }}>GPS</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px', fontWeight: '700', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
+                {verData ? verData.gps : '—'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#fbbf24' }}>
+                {verData ? gpsLabel(verData.gps) : ''}
+              </span>
+              <div style={{ display: 'flex', gap: '3px' }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{ width: '6px', height: `${8 + i * 4}px`, borderRadius: '2px', background: verData && parseInt(verData.gps) > i ? '#fbbf24' : 'rgba(255,255,255,.1)', alignSelf: 'flex-end' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* SIGNAL 표시 — 읽기전용 */}
+          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.04)' }}>
+            <span style={{ ...lblStyle, color: '#10b981', fontWeight: '700' }}>SIGNAL</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px', fontWeight: '700', color: '#10b981', fontFamily: "'JetBrains Mono', monospace" }}>
+                {verData ? verData.signal : '—'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#10b981' }}>
+                {verData ? signalLabel(verData.signal) : ''}
+              </span>
+              <div style={{ display: 'flex', gap: '3px' }}>
+                {[0,1,2,3,4].map(i => (
+                  <div key={i} style={{ width: '6px', height: `${6 + i * 4}px`, borderRadius: '2px', background: verData && parseInt(verData.signal) > i ? '#10b981' : 'rgba(255,255,255,.1)', alignSelf: 'flex-end' }} />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* 커맨드 미리보기 */}
+        {isChanged() && buildCommand() && (
+          <div style={{ margin: '0 14px 8px', padding: '8px 12px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '8px' }}>
+            <span style={{ fontSize: '9px', color: '#6b8fae' }}>전송 커맨드: </span>
+            <span style={{ fontSize: '10px', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>{buildCommand()}</span>
+          </div>
+        )}
+
         {/* 저장 버튼 */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={handleSave} disabled={!changed || saving}
-            style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: changed ? 'linear-gradient(135deg,#00d4f0,#0891b2)' : 'rgba(255,255,255,.07)', color: changed ? '#0d1628' : 'rgba(255,255,255,.2)', fontWeight: '700', fontSize: '12px', cursor: changed ? 'pointer' : 'not-allowed', transition: 'all .2s' }}>
+        <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <button onClick={handleSave} disabled={!canSave}
+            style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: canSave ? 'linear-gradient(135deg,#00d4f0,#0891b2)' : 'rgba(255,255,255,.07)', color: canSave ? '#0d1628' : 'rgba(255,255,255,.2)', fontWeight: '700', fontSize: '12px', cursor: canSave ? 'pointer' : 'not-allowed', transition: 'all .2s' }}>
             💾 모든 설정 저장
           </button>
           <span style={{ fontSize: '10px', color: '#6b8fae' }}>※ ACK 수신시까지 최대 10분 대기</span>
-          {saveStatus === 'waiting' && <span style={{ fontSize: '11px', color: '#f59e0b', animation: 'sosBlink 1s infinite' }}>⏳ 대기 중...</span>}
-          {saveStatus === 'failed' && (
+
+          {saveStatus === 'waiting' && (
+            <span style={{ fontSize: '11px', color: '#f59e0b' }}>⏳ 대기 중... ({retryCount}/{MAX_RETRY}회)</span>
+          )}
+          {saveStatus === 'failed' && retryCount < MAX_RETRY && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#ef4444' }}>❌ 실패</span>
-              <button onClick={handleSave} style={{ padding: '5px 12px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>재전송</button>
+              <span style={{ fontSize: '11px', color: '#ef4444' }}>❌ 실패 ({retryCount}/{MAX_RETRY}회)</span>
+              <button onClick={handleRetry}
+                style={{ padding: '5px 12px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
+                재전송
+              </button>
             </div>
           )}
-          {saveStatus === 'success' && <span style={{ fontSize: '11px', color: '#10b981' }}>✅ 성공</span>}
+          {saveStatus === 'failed' && retryCount >= MAX_RETRY && (
+            <span style={{ fontSize: '11px', color: '#ef4444' }}>❌ 재전송 {MAX_RETRY}회 초과 — 저장 비활성화</span>
+          )}
+          {saveStatus === 'success' && (
+            <span style={{ fontSize: '11px', color: '#10b981' }}>✅ 성공</span>
+          )}
         </div>
 
         {/* Device Call */}
@@ -871,11 +1096,11 @@ function DeviceSettingPanel({ device, onClose }) {
               { label: 'CAR-Call', cmd: 'CAR', desc: 'CAR 1회' },
               { label: 'UAV-Call', cmd: 'UAV', desc: 'UAV 1회' },
               { label: 'UAT-Call', cmd: 'UAT', desc: 'UAT 1회' },
-              { label: 'VER-Call', cmd: 'VER', desc: 'VER 호출' },
+              { label: 'VER-Call', cmd: 'VER', desc: 'VER 호출', highlight: true },
             ].map(b => (
               <div key={b.cmd} style={{ textAlign: 'center' }}>
                 <button onClick={() => handleCall(b.cmd)} disabled={callDisabled}
-                  style={{ padding: '6px 14px', borderRadius: '7px', border: `1px solid ${b.cmd === 'VER' ? 'rgba(0,212,240,.5)' : 'rgba(255,255,255,.15)'}`, background: b.cmd === 'VER' ? 'rgba(0,212,240,.12)' : 'rgba(255,255,255,.05)', color: b.cmd === 'VER' ? '#00d4f0' : '#e8f4ff', cursor: callDisabled ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: '700', opacity: callDisabled ? 0.4 : 1 }}>
+                  style={{ padding: '6px 14px', borderRadius: '7px', border: `1px solid ${b.highlight ? 'rgba(0,212,240,.5)' : 'rgba(255,255,255,.15)'}`, background: b.highlight ? 'rgba(0,212,240,.12)' : 'rgba(255,255,255,.05)', color: b.highlight ? '#00d4f0' : '#e8f4ff', cursor: callDisabled ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: '700', opacity: callDisabled ? 0.4 : 1 }}>
                   {b.label}
                 </button>
                 <div style={{ fontSize: '8px', color: '#4b6483', marginTop: '2px' }}>{b.desc}</div>
@@ -891,105 +1116,245 @@ function DeviceSettingPanel({ device, onClose }) {
 /* ══════════════════════════════════════
    GEO Fence 패널
 ══════════════════════════════════════ */
-function GeoFencePanel({ devices, onClose }) {
-  const [geoOn, setGeoOn] = useState(false);
+function GeoFencePanel({ devices, selectedDevice, onClose }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const drawSourceRef = useRef(null);
+  const vectorLayerRef = useRef(null);
+  const [points, setPoints] = useState([]);
   const [mode, setMode] = useState('DEF1');
+  const [geoOn, setGeoOn] = useState(true);
   const [interval, setIntervalVal] = useState('S010');
   const [intervalT, setIntervalT] = useState('T010');
-  const [points, setPoints] = useState([]);
-  const [selectedGeo, setSelectedGeo] = useState(null);
-  const [geoList, setGeoList] = useState(['GEO-1', 'GEO-2', 'GEO-3', 'GEO-4', 'GEO-5']);
   const [activeGeo, setActiveGeo] = useState(null);
-  const [mapCenter] = useState({ lat: 37.5, lon: 127.0 });
+  const deviceKey = `geo_${selectedDevice?.imei || 'unknown'}`;
 
+  const [savedSlots, setSavedSlots] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${deviceKey}_slots`);
+      return saved ? JSON.parse(saved) : { 'GEO-1': null, 'GEO-2': null, 'GEO-3': null, 'GEO-4': null, 'GEO-5': null };
+    } catch (_) {
+      return { 'GEO-1': null, 'GEO-2': null, 'GEO-3': null, 'GEO-4': null, 'GEO-5': null };
+    }
+  });
+
+  const [lastSentSlot, setLastSentSlot] = useState(() => {
+    return localStorage.getItem(`${deviceKey}_lastSent`) || null;
+  });
+  const [sendStatus, setSendStatus] = useState(''); // '', 'waiting', 'success', 'failed'
+  const [retryCount, setRetryCount] = useState(0);
+  const [sendLocked, setSendLocked] = useState(false);
+  const [intersectError, setIntersectError] = useState(false);
+  const MAX_RETRY = 3;
   const MAX_POINTS = 8;
-  const canvasW = 560;
-  const canvasH = 340;
 
-  // 위경도 → 캔버스 좌표
-  const latRange = [37.3, 37.7];
-  const lonRange = [126.7, 127.3];
-  const toCanvas = (lat, lon) => ({
-    x: ((lon - lonRange[0]) / (lonRange[1] - lonRange[0])) * canvasW,
-    y: canvasH - ((lat - latRange[0]) / (latRange[1] - latRange[0])) * canvasH,
-  });
-  const fromCanvas = (x, y) => ({
-    lat: latRange[0] + ((canvasH - y) / canvasH) * (latRange[1] - latRange[0]),
-    lon: lonRange[0] + (x / canvasW) * (lonRange[1] - lonRange[0]),
-  });
 
-  const handleCanvasClick = (e) => {
-    if (points.length >= MAX_POINTS) { alert(`최대 ${MAX_POINTS}개까지 추가 가능합니다.`); return; }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const { lat, lon } = fromCanvas(x, y);
-    setPoints(p => [...p, { lat: parseFloat(lat.toFixed(6)), lon: parseFloat(lon.toFixed(6)) }]);
+  // 선분 교차 검사
+  const ccw = (A, B, C) => (C.lat - A.lat) * (B.lon - A.lon) > (B.lat - A.lat) * (C.lon - A.lon);
+  const segmentsIntersect = (A, B, C, D) => ccw(A, C, D) !== ccw(B, C, D) && ccw(A, B, C) !== ccw(A, B, D);
+  const hasIntersection = (pts) => {
+    const n = pts.length;
+    if (n < 4) return false;
+
+    // 모든 선분 목록 (열린 폴리라인 + 닫히는 선분)
+    const edges = [];
+    for (let i = 0; i < n - 1; i++) {
+      edges.push([pts[i], pts[i + 1]]);
+    }
+    // 닫히는 선분: 마지막→첫번째
+    edges.push([pts[n - 1], pts[0]]);
+
+    // 모든 비인접 선분 쌍 교차 검사
+    for (let i = 0; i < edges.length; i++) {
+      for (let j = i + 2; j < edges.length; j++) {
+        // 첫번째와 마지막 선분은 꼭짓점을 공유하므로 제외
+        if (i === 0 && j === edges.length - 1) continue;
+        if (segmentsIntersect(edges[i][0], edges[i][1], edges[j][0], edges[j][1])) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
-  const fillColor = mode === 'DEF1' ? 'rgba(16,185,129,0.2)' : mode === 'DEF2' ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)';
-  const strokeColor = mode === 'DEF1' ? '#10b981' : mode === 'DEF2' ? '#ef4444' : '#3b82f6';
+  // OpenLayers 초기화
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-  // 프리뷰 커맨드
+    const source = new VectorSource();
+    drawSourceRef.current = source;
+
+    const vectorLayer = new VectorLayer({ source });
+    vectorLayerRef.current = vectorLayer;
+
+    const map = new Map({
+      target: mapRef.current,
+      layers: [
+        new TileLayer({ source: new OSM() }),
+        vectorLayer,
+      ],
+      view: new View({ center: fromLonLat([127.5, 36.5]), zoom: 7 }),
+    });
+    mapInstanceRef.current = map;
+
+    // 현재 위치
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          map.getView().setCenter(fromLonLat([pos.coords.longitude, pos.coords.latitude]));
+          map.getView().setZoom(13);
+        },
+        () => {
+          map.getView().setCenter(fromLonLat([127.5, 36.5]));
+          map.getView().setZoom(7);
+        }
+      );
+    }
+
+    // 클릭으로 꼭짓점 추가
+    map.on('click', (e) => {
+      const [lon, lat] = toLonLat(e.coordinate);
+      const newPt = { lat: parseFloat(lat.toFixed(6)), lon: parseFloat(lon.toFixed(6)) };
+      setPoints(prev => {
+        if (prev.length >= MAX_POINTS) return prev;
+        const next = [...prev, newPt];
+        if (next.length >= 4 && hasIntersection(next)) {
+          setIntersectError(true);
+          setTimeout(() => setIntersectError(false), 2000);
+          return prev;
+        }
+        setIntersectError(false);
+        return next;
+      });
+    });
+
+    return () => { map.setTarget(undefined); mapInstanceRef.current = null; };
+  }, []);
+
+  // points 변경 시 지도 업데이트
+  useEffect(() => {
+    const source = drawSourceRef.current;
+    if (!source) return;
+    source.clear();
+
+    const color = mode === 'DEF1' ? '#10b981' : mode === 'DEF2' ? '#ef4444' : '#3b82f6';
+
+    if (points.length >= 3) {
+      const coords = points.map(p => fromLonLat([p.lon, p.lat]));
+      const polygon = new Feature({ geometry: new Polygon([[...coords, coords[0]]]) });
+      polygon.setStyle(new Style({
+        stroke: new Stroke({ color, width: 2 }),
+        fill: new Fill({ color: color + '33' }),
+      }));
+      source.addFeature(polygon);
+    }
+
+    if (points.length >= 2) {
+      const coords = points.map(p => fromLonLat([p.lon, p.lat]));
+      const line = new Feature({ geometry: new LineString(coords) });
+      line.setStyle(new Style({
+        stroke: new Stroke({ color, width: 1.5, lineDash: [4, 4] }),
+      }));
+      source.addFeature(line);
+    }
+
+    points.forEach((p, i) => {
+      const f = new Feature({ geometry: new Point(fromLonLat([p.lon, p.lat])) });
+      f.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 7,
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+        }),
+        text: new Text({
+          text: `${i + 1}`,
+          fill: new Fill({ color: '#fff' }),
+          font: 'bold 10px sans-serif',
+          offsetY: -18,
+        }),
+      }));
+      source.addFeature(f);
+    });
+  }, [points, mode]);
+
   const buildCommand = () => {
-    if (!geoOn || points.length < 3) return '— 포트 3개 이상 추가 후 생성됩니다 —';
+    if (!geoOn || points.length < 3) return null;
     const n = points.length;
     const coords = points.map((p, i) => `${n}-${i + 1},${p.lat},${p.lon}`).join(',');
-    const intervals = mode === 'DEF1' ? interval : mode === 'DEF2' ? intervalT : `${interval},${intervalT}`;
-    return `'G1,${mode},${intervals},${n},${coords}'`;
+    const intervalStr = mode === 'DEF1' ? interval : mode === 'DEF2' ? intervalT : `${interval},${intervalT}`;
+    return `G1,${mode},${intervalStr},${n},${coords}`;
+  };
+
+  const handleSaveSlot = () => {
+    if (!activeGeo) { alert('GEO 슬롯을 선택해주세요.'); return; }
+    if (points.length < 3) { alert('최소 3개 좌표가 필요합니다.'); return; }
+    const newSlots = { ...savedSlots, [activeGeo]: { points: [...points], mode, interval, intervalT } };
+    setSavedSlots(newSlots);
+    localStorage.setItem(`${deviceKey}_slots`, JSON.stringify(newSlots));
+    alert(`${activeGeo}에 저장 완료!`);
+  };
+
+  const doSend = async () => {
+    const cmd = buildCommand();
+    if (!cmd) { alert('최소 3개 좌표가 필요합니다.'); return; }
+    setSendStatus('waiting');
+    try {
+      await api.post('/location/command', { imei: selectedDevice?.imei, text: cmd, eventcode: '3' });
+      setLastSentSlot(activeGeo);
+      localStorage.setItem(`${deviceKey}_lastSent`, activeGeo);
+      setSendLocked(true);
+      setTimeout(() => setSendLocked(false), 120000); // 2분 잠금
+      setTimeout(() => { setSendStatus(prev => prev === 'waiting' ? 'failed' : prev); }, 600000);
+    } catch (_) {
+      setSendStatus('failed');
+    }
   };
 
   const handleSend = async () => {
-    if (!geoOn) { alert('GEO ON 상태에서만 전송 가능합니다.'); return; }
-    if (points.length < 3) { alert('최소 3개 좌표가 필요합니다.'); return; }
-    const cmd = `FF FF 7E ${buildCommand()} FF FF FE 00 00`;
-    try {
-      // 선택된 장비에 전송
-      alert(`전송 준비: ${cmd}`);
-    } catch { }
+    if (sendLocked) { alert('전송 후 2분간 잠금됩니다.'); return; }
+    if (!activeGeo) { alert('GEO 슬롯을 선택해주세요.'); return; }
+    setRetryCount(0);
+    await doSend();
   };
 
-  const INTERVAL_OPTIONS = [
-    { value: 'S001', label: 'S001 - 1분' }, { value: 'S005', label: 'S005 - 5분' },
-    { value: 'S010', label: 'S010 - 10분' }, { value: 'S030', label: 'S030 - 30분' },
-  ];
-  const INTERVAL_T_OPTIONS = [
-    { value: 'T001', label: 'T001 - 1분' }, { value: 'T005', label: 'T005 - 5분' },
-    { value: 'T010', label: 'T010 - 10분' }, { value: 'T030', label: 'T030 - 30분' },
-  ];
+  const handleRetry = async () => {
+    if (retryCount >= MAX_RETRY) { alert('재전송 3회 초과'); return; }
+    setRetryCount(p => p + 1);
+    await doSend();
+  };
+
+  const INTERVAL_OPTIONS = ['S001','S005','S010','S030'].map(v => ({ value: v, label: `${v} - ${parseInt(v.slice(1))}분` }));
+  const INTERVAL_T_OPTIONS = ['T001','T005','T010','T030'].map(v => ({ value: v, label: `${v} - ${parseInt(v.slice(1))}분` }));
+
+  const slotBorder = (g) => {
+    if (g === lastSentSlot) return '2px solid #fbbf24';
+    if (savedSlots[g]) return '2px solid #ef4444';
+    return '1px solid rgba(0,212,240,.2)';
+  };
+  const slotBg = (g) => {
+    if (g === activeGeo) return 'rgba(0,212,240,.15)';
+    if (g === lastSentSlot) return 'rgba(245,158,11,.1)';
+    if (savedSlots[g]) return 'rgba(239,68,68,.08)';
+    return 'rgba(0,0,0,.3)';
+  };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: '#0d1628', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', width: '900px', maxHeight: '95vh', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#0d1628', border: '1px solid rgba(0,212,240,.25)', borderRadius: '12px', width: '95vw', height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* 헤더 */}
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: geoOn ? '#10b981' : '#ef4444', display: 'inline-block' }} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', color: '#00d4f0' }}>GEO FENCE CONFIGURATION</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '10px', color: '#6b8fae' }}>Device: {selectedGeo || '—'}</span>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-          </div>
-        </div>
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, flexWrap: 'wrap' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: geoOn ? '#10b981' : '#ef4444', display: 'inline-block', boxShadow: geoOn ? '0 0 6px #10b981' : '0 0 6px #ef4444' }} />
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', color: '#00d4f0' }}>GEO FENCE CONFIGURATION</span>
 
-        {/* 컨트롤 바 */}
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button onClick={() => setGeoOn(true)}
-            style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', background: geoOn ? '#10b981' : 'rgba(16,185,129,.15)', color: geoOn ? '#fff' : '#10b981', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-            G1 ON
-          </button>
-          <button onClick={() => setGeoOn(false)}
-            style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', background: !geoOn ? '#ef4444' : 'rgba(239,68,68,.15)', color: !geoOn ? '#fff' : '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-            G2 OFF
-          </button>
+          {/* G1 ON / G2 OFF */}
+          <button onClick={() => setGeoOn(true)} style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: geoOn ? '#10b981' : 'rgba(16,185,129,.15)', color: geoOn ? '#fff' : '#10b981', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>G1 ON</button>
+          <button onClick={() => setGeoOn(false)} style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: !geoOn ? '#ef4444' : 'rgba(239,68,68,.15)', color: !geoOn ? '#fff' : '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>G2 OFF</button>
 
           <span style={{ color: '#4b6483', fontSize: '10px' }}>MODE</span>
           {['DEF1', 'DEF2', 'DEF3'].map(m => (
             <button key={m} onClick={() => setMode(m)}
-              style={{ padding: '5px 12px', borderRadius: '7px', border: 'none', background: mode === m ? (m === 'DEF1' ? '#10b981' : m === 'DEF2' ? '#ef4444' : '#3b82f6') : 'rgba(255,255,255,.07)', color: mode === m ? '#fff' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
+              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: mode === m ? (m === 'DEF1' ? '#10b981' : m === 'DEF2' ? '#ef4444' : '#3b82f6') : 'rgba(255,255,255,.07)', color: mode === m ? '#fff' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
               {m === 'DEF1' ? 'DEF1 IN' : m === 'DEF2' ? 'DEF2 OUT' : 'DEF3 BOTH'}
             </button>
           ))}
@@ -997,173 +1362,152 @@ function GeoFencePanel({ devices, onClose }) {
           <span style={{ color: '#4b6483', fontSize: '10px' }}>INTERVAL</span>
           {(mode === 'DEF1' || mode === 'DEF3') && (
             <select value={interval} onChange={e => setIntervalVal(e.target.value)}
-              style={{ padding: '4px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
+              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
               {INTERVAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
           {(mode === 'DEF2' || mode === 'DEF3') && (
             <select value={intervalT} onChange={e => setIntervalT(e.target.value)}
-              style={{ padding: '4px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
+              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
               {INTERVAL_T_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '10px', color: '#6b8fae' }}>Device: {selectedDevice?.alias || '—'}</span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+          </div>
         </div>
 
+        {/* 교차 오류 */}
+        {intersectError && (
+          <div style={{ padding: '6px 20px', background: 'rgba(239,68,68,.15)', borderBottom: '1px solid rgba(239,68,68,.3)', fontSize: '11px', color: '#ef4444', fontWeight: '700', flexShrink: 0 }}>
+            ⚠️ 선분이 교차됩니다. 다른 위치를 선택해주세요.
+          </div>
+        )}
+
         {/* 본문 */}
-        <div style={{ display: 'flex', gap: '0' }}>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-          {/* 캔버스 영역 */}
-          <div style={{ flex: 1, padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          {/* 지도 영역 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+            <div style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, background: 'rgba(0,0,0,.3)' }}>
               <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
-                DRAWING AREA {points.length} / {MAX_POINTS} pts &nbsp;
-                <span style={{ color: '#4b6483' }}>클릭으로 꼭짓점 추가 (최소 3개, 최대 {MAX_POINTS}개)</span>
+                DRAWING AREA {points.length} / {MAX_POINTS} pts
               </span>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <span style={{ fontSize: '9px', color: '#4b6483' }}>지도 클릭으로 꼭짓점 추가 (최소 3개, 최대 {MAX_POINTS}개)</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
                 <button onClick={() => setPoints(p => p.slice(0, -1))}
-                  style={{ padding: '4px 10px', background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '5px', color: '#f59e0b', fontSize: '10px', cursor: 'pointer' }}>
-                  ↩ Undo
-                </button>
+                  style={{ padding: '3px 10px', background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '5px', color: '#f59e0b', fontSize: '10px', cursor: 'pointer' }}>↩ Undo</button>
                 <button onClick={() => setPoints([])}
-                  style={{ padding: '4px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
-                  ✕ Clear
-                </button>
+                  style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>✕ Clear</button>
               </div>
             </div>
-
-            {/* 캔버스 */}
-            <div style={{ position: 'relative', border: '1px solid rgba(0,212,240,.2)', borderRadius: '8px', overflow: 'hidden', background: '#0a1628', cursor: 'crosshair' }}>
-              <svg width={canvasW} height={canvasH} onClick={handleCanvasClick} style={{ display: 'block' }}>
-                {/* 격자선 */}
-                {Array.from({ length: 7 }, (_, i) => (
-                  <g key={i}>
-                    <line x1={0} y1={i * (canvasH / 6)} x2={canvasW} y2={i * (canvasH / 6)} stroke="rgba(0,212,240,0.08)" strokeWidth="1" />
-                    <line x1={i * (canvasW / 6)} y1={0} x2={i * (canvasW / 6)} y2={canvasH} stroke="rgba(0,212,240,0.08)" strokeWidth="1" />
-                  </g>
-                ))}
-                {/* 위경도 눈금 */}
-                {[0, 1, 2, 3, 4].map(i => {
-                  const lat = latRange[0] + i * (latRange[1] - latRange[0]) / 4;
-                  const lon = lonRange[0] + i * (lonRange[1] - lonRange[0]) / 4;
-                  const y = canvasH - (i / 4) * canvasH;
-                  const x = (i / 4) * canvasW;
-                  return (
-                    <g key={i}>
-                      <text x={4} y={y - 4} fill="rgba(0,212,240,0.4)" fontSize="9">{lat.toFixed(1)}°N</text>
-                      <text x={x + 2} y={canvasH - 4} fill="rgba(0,212,240,0.4)" fontSize="9">{lon.toFixed(1)}°E</text>
-                    </g>
-                  );
-                })}
-
-                {/* 폴리곤 */}
-                {points.length >= 3 && (
-                  <polygon
-                    points={points.map(p => { const c = toCanvas(p.lat, p.lon); return `${c.x},${c.y}`; }).join(' ')}
-                    fill={fillColor} stroke={strokeColor} strokeWidth="2" strokeDasharray="none"
-                  />
-                )}
-
-                {/* 연결선 */}
-                {points.length >= 2 && points.map((p, i) => {
-                  if (i === 0) return null;
-                  const c1 = toCanvas(points[i - 1].lat, points[i - 1].lon);
-                  const c2 = toCanvas(p.lat, p.lon);
-                  return <line key={i} x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} stroke={strokeColor} strokeWidth="1.5" strokeDasharray="4,3" />;
-                })}
-
-                {/* 포인트 */}
-                {points.map((p, i) => {
-                  const c = toCanvas(p.lat, p.lon);
-                  return (
-                    <g key={i}>
-                      <circle cx={c.x} cy={c.y} r={6} fill={strokeColor} stroke="#fff" strokeWidth="1.5" />
-                      <text x={c.x + 9} y={c.y - 6} fill="#fff" fontSize="9" fontWeight="bold">{i + 1}</text>
-                      <text x={c.x + 9} y={c.y + 6} fill="rgba(255,255,255,0.6)" fontSize="8">{p.lat.toFixed(4)},{p.lon.toFixed(4)}</text>
-                    </g>
-                  );
-                })}
-              </svg>
-              {/* 하단 정보 바 */}
-              <div style={{ padding: '4px 10px', background: 'rgba(0,0,0,.5)', display: 'flex', gap: '12px', fontSize: '8px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
-                <span>WGS84</span>
-                <span>위경도 기준</span>
-                <span>꼭짓점 추가 (최소 3개, 최대 {MAX_POINTS}개)</span>
-                <span>교차 선분 불가</span>
-                <span>GEO 슬롯 저장 후 전송</span>
-              </div>
-            </div>
+            <div ref={mapRef} style={{ flex: 1, cursor: 'crosshair' }} />
           </div>
 
           {/* 우측 패널 */}
-          <div style={{ width: '280px', borderLeft: '1px solid rgba(0,212,240,.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ width: '300px', borderLeft: '1px solid rgba(0,212,240,.1)', display: 'flex', flexDirection: 'column', gap: '0', overflowY: 'auto', background: '#0a1628' }}>
 
             {/* 좌표 목록 */}
-            <div>
+            <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
               <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>COORDINATE LIST</div>
               {points.length === 0 ? (
-                <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '12px' }}>지도를 클릭하여 꼭짓점을 추가하세요</div>
-              ) : (
-                <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
-                  {points.map((p, i) => (
-                    <div key={i} style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", padding: '3px 0', borderBottom: '1px solid rgba(0,212,240,.05)' }}>
-                      {i + 1}. {p.lat.toFixed(6)}, {p.lon.toFixed(6)}
-                    </div>
-                  ))}
+                <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '10px' }}>지도를 클릭하여 꼭짓점을 추가하세요</div>
+              ) : points.map((p, i) => (
+                <div key={i} style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", padding: '3px 0', borderBottom: '1px solid rgba(0,212,240,.05)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#00d4f0' }}>{i + 1}.</span>
+                  <span>{p.lat.toFixed(5)}, {p.lon.toFixed(5)}</span>
                 </div>
-              )}
+              ))}
             </div>
 
             {/* GEO 슬롯 */}
-            <div>
-              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>GEO-SETTING 목록 (저장 순번 1-5)</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                {geoList.map(g => (
-                  <button key={g} onClick={() => setActiveGeo(activeGeo === g ? null : g)}
-                    style={{ padding: '5px 10px', borderRadius: '6px', border: `1px solid ${activeGeo === g ? '#00d4f0' : 'rgba(0,212,240,.2)'}`, background: activeGeo === g ? 'rgba(0,212,240,.15)' : 'rgba(0,0,0,.3)', color: activeGeo === g ? '#00d4f0' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
+            <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
+              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>GEO-SETTING 슬롯 (1-5)</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {['GEO-1','GEO-2','GEO-3','GEO-4','GEO-5'].map(g => (
+                  <button key={g} onClick={() => {
+                    setActiveGeo(activeGeo === g ? null : g);
+                    if (savedSlots[g]) setPoints(savedSlots[g].points);
+                  }}
+                    style={{ padding: '5px 10px', borderRadius: '6px', border: slotBorder(g), background: slotBg(g), color: activeGeo === g ? '#00d4f0' : savedSlots[g] ? '#ef4444' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
                     {g}
                   </button>
                 ))}
               </div>
-              <div style={{ fontSize: '9px', color: '#4b6483', lineHeight: 1.6 }}>
-                슬롯을 선택하면 저장된 폴리곤이 표시됩니다.<br />
-                ※ 최대 8개 꼭짓점 — 활성화 된 상태에서만 전송 가능
-              </div>
+              {lastSentSlot && (
+                <div style={{ fontSize: '9px', color: '#fbbf24', padding: '4px 8px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '5px' }}>
+                  📡 마지막 전송: {lastSentSlot}
+                </div>
+              )}
+              {activeGeo && savedSlots[activeGeo] && (
+                <div style={{ marginTop: '6px', fontSize: '9px', color: '#10b981', padding: '4px 8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '5px' }}>
+                  ✓ 저장된 슬롯: {savedSlots[activeGeo].points.length}개 꼭짓점 / {savedSlots[activeGeo].mode}
+                </div>
+              )}
             </div>
 
             {/* Command Preview */}
-            <div>
+            <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
               <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>COMMAND PREVIEW</div>
               <div style={{ background: 'rgba(0,0,0,.4)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '6px', padding: '10px', fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: '60px', wordBreak: 'break-all' }}>
-                {buildCommand()}
+                {buildCommand() || '— 포트 3개 이상 추가 후 생성됩니다 —'}
               </div>
             </div>
 
-            {/* Frame Structure */}
-            <div>
-              <div style={{ fontSize: '9px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.8 }}>
-                FRAME STRUCTURE<br />
-                <span style={{ color: '#6b8fae' }}>FF FF 7E</span><br />
-                <span style={{ color: '#a78bfa' }}>'G[1|2],DEF[1|2|3],S[interval],N,coords...'</span> <span style={{ color: '#6b8fae' }}>FF FF FE 00 00</span><br />
-                <span style={{ color: '#4b6483' }}>G1=ON G2=OFF · DEF1=IN DEF2=OUT DEF3=BOTH ·<br />S010=10분 S005=5분 S001=1분 S030=30분</span>
+            {/* 안내 문구 */}
+            <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)', fontSize: '10px', color: '#6b8fae', lineHeight: 1.8 }}>
+              <div style={{ fontWeight: '700', color: '#00d4f0', marginBottom: '6px', fontSize: '11px' }}>📌 사용 안내</div>
+              <div>• 슬롯(GEO-1~5)을 클릭하여 선택하세요.</div>
+              <div>• 지도에서 꼭짓점을 추가 후 <span style={{ color: '#00d4f0', fontWeight: '700' }}>저장</span>하면 슬롯이 <span style={{ color: '#ef4444', fontWeight: '700' }}>빨간색</span>으로 변합니다.</div>
+              <div>• 새 슬롯을 선택해 추가 저장할 수 있습니다. (총 5개)</div>
+              <div>• <span style={{ color: '#00d4f0', fontWeight: '700' }}>전송</span>이 완료된 슬롯은 <span style={{ color: '#fbbf24', fontWeight: '700' }}>노란색</span>으로 변합니다.</div>
+              <div style={{ marginTop: '8px', padding: '6px 8px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.1)', borderRadius: '6px', fontSize: '9px', color: '#4b6483' }}>
+                ※ 전송 후 2분간 잠금 / 실패 시 최대 3회 자동 재시도
               </div>
+            </div>
+
+            {/* 전송 상태 */}
+            <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
+              {sendStatus === 'waiting' && (
+                <div style={{ padding: '8px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '6px', fontSize: '10px', color: '#f59e0b' }}>
+                  ⏳ 대기 중... ({retryCount}/{MAX_RETRY}회)
+                </div>
+              )}
+              {sendStatus === 'failed' && retryCount < MAX_RETRY && (
+                <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>❌ 실패 ({retryCount}/{MAX_RETRY}회)</span>
+                  <button onClick={handleRetry} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>재전송</button>
+                </div>
+              )}
+              {sendStatus === 'failed' && retryCount >= MAX_RETRY && (
+                <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444' }}>
+                  ❌ 재전송 {MAX_RETRY}회 초과 — 잠금
+                </div>
+              )}
+              {sendStatus === 'success' && (
+                <div style={{ padding: '8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '6px', fontSize: '10px', color: '#10b981' }}>
+                  ✅ 전송 성공
+                </div>
+              )}
+              {sendLocked && sendStatus !== 'waiting' && (
+                <div style={{ marginTop: '6px', fontSize: '9px', color: '#6b8fae' }}>🔒 2분간 잠금 중...</div>
+              )}
+            </div>
+
+            {/* 버튼 */}
+            <div style={{ padding: '14px', display: 'flex', gap: '8px', marginTop: 'auto' }}>
+              <button onClick={handleSaveSlot}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(0,212,240,.3)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
+                💾 저장
+              </button>
+              <button onClick={handleSend} disabled={sendLocked || retryCount >= MAX_RETRY}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.07)' : 'linear-gradient(135deg,#10b981,#059669)', color: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.2)' : '#fff', fontWeight: '700', fontSize: '12px', cursor: sendLocked || retryCount >= MAX_RETRY ? 'not-allowed' : 'pointer' }}>
+                ▶ 전송
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* 하단 버튼 */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button onClick={async () => {
-            if (!activeGeo) { alert('GEO 슬롯을 선택해주세요.'); return; }
-            // 저장 로직
-            alert(`${activeGeo}에 저장 완료!`);
-          }}
-            style={{ padding: '9px 24px', borderRadius: '8px', border: '1px solid rgba(0,212,240,.3)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
-            💾 저장
-          </button>
-          <button onClick={handleSend}
-            style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
-            ▶ 전송
-          </button>
         </div>
       </div>
     </div>

@@ -79,6 +79,13 @@ public class LocationController {
         return ResponseEntity.ok(Map.of("message", "명령 등록 완료", "idx", cmd.getIdx()));
     }
 
+    // GEO Fence 목록 조회
+    @GetMapping("/command/geo/{imei}")
+    public ResponseEntity<?> getGeoCommands(@PathVariable String imei) {
+        List<RcvEventList> list = rcvRepo.findByImeiAndEventcodeOrderByIdxDesc(imei, "3");
+        return ResponseEntity.ok(list);
+    }
+
     // 대기중인 명령 조회
     @GetMapping("/command/pending")
     public ResponseEntity<?> getPendingCommands() {

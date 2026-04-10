@@ -20,9 +20,11 @@ public class RcvEventList {
     private String imei;
 
     // 전송 제목
+    @Column(name = "eventcode", length = 5)
+    private String eventcode;
+
     @Column(name = "title", length = 100)
     private String title;
-
     // 전송할 텍스트 명령
     @Column(name = "text", columnDefinition = "TEXT")
     private String text;
