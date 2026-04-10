@@ -19,6 +19,10 @@ public class RcvEventList {
     @Column(name = "imei", length = 20)
     private String imei;
 
+    // 전송 제목
+    @Column(name = "title", length = 100)
+    private String title;
+
     // 전송할 텍스트 명령
     @Column(name = "text", columnDefinition = "TEXT")
     private String text;
@@ -27,12 +31,7 @@ public class RcvEventList {
     @Column(name = "status", length = 5)
     private String status = "0";
 
-    // 등록 시간
-    @Column(name = "reg_date", length = 20)
-    private String regDate;
-
     // 이리듐 GW MT Confirmation 상태코드
-    // 1~50: 큐 등록 성공(대기순서), 0: 성공, 음수: 실패
     @Column(name = "mt_status", length = 10)
     private String mtStatus;
 
@@ -44,4 +43,8 @@ public class RcvEventList {
     @Column(name = "retry_count")
     @Builder.Default
     private Integer retryCount = 0;
+
+    // 등록 시간
+    @Column(name = "reg_date", length = 20)
+    private String regDate;
 }

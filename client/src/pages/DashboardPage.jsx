@@ -506,7 +506,8 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
       case '1': return { label: 'TRACK', color: '#3b82f6', bg: 'rgba(59,130,246,.15)' };
       case '7': return { label: 'CAN', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)' };
       case '9': return { label: 'EVENT', color: '#f59e0b', bg: 'rgba(245,158,11,.15)' };
-      case '3': return { label: 'MSG', color: '#10b981', bg: 'rgba(16,185,129,.15)' };
+      case '5': return { label: 'MSG', color: '#10b981', bg: 'rgba(16,185,129,.15)' };
+      case '3': return { label: 'CAN+GPS', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)' };
       default: return { label: 'DATA', color: '#6b8fae', bg: 'rgba(107,143,174,.15)' };
     }
   };

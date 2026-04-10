@@ -56,7 +56,7 @@ export default function TextViewData({ devices, allDevices = [] }) {
 
   const formatDate = (d) => {
     if (!d || d.length < 12) return d || '-';
-    return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(8,10)}:${d.slice(10,12)}`;
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)} ${d.slice(8, 10)}:${d.slice(10, 12)}`;
   };
 
   const getAlias = (imei) => {
@@ -74,7 +74,7 @@ export default function TextViewData({ devices, allDevices = [] }) {
 
   const getTypeInfo = (row) => {
     const ec = row.eventcode;
-    if (ec === '3' && row.memo) return { label: 'MSG', color: '#10b981', bg: 'rgba(16,185,129,.15)' };
+    if (ec === '5') return { label: 'MSG', color: '#10b981', bg: 'rgba(16,185,129,.15)' };
     if (ec === '2') return { label: 'CAN', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)' };
     if (ec === '3') return { label: 'CAN+GPS', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)' };
     if (ec === '9') return { label: 'EVENT', color: '#f59e0b', bg: 'rgba(245,158,11,.15)' };
@@ -102,7 +102,7 @@ export default function TextViewData({ devices, allDevices = [] }) {
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const downloadCSV = () => {
-    const headers = ['TYPE','IMEI','ALIAS','SENDER','RECEIVER','TITLE','MEMO','DATA','TIME'];
+    const headers = ['TYPE', 'IMEI', 'ALIAS', 'SENDER', 'RECEIVER', 'TITLE', 'MEMO', 'DATA', 'TIME'];
     const rows = filtered.map(d => {
       const type = getTypeInfo(d);
       return [type.label, d.imei, getAlias(d.imei), d.imei, d.rimei || '-', d.title || '-', d.memo || '-', d.can || d.ver || '-', formatDate(d.regDate)].join(',');

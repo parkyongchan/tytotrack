@@ -38,7 +38,7 @@ export default function ChatRoom({ user, devices = [] }) {
       ]);
       // MSG만 (eventcode=3, memo 있는 것) + 내 장비만
       const snd = (Array.isArray(sndRes.data) ? sndRes.data : [])
-        .filter(m => m.eventcode === '3' && m.memo && myImeis.includes(m.imei));
+        .filter(m => m.eventcode === '5' && myImeis.includes(m.imei));
       const rcv = (Array.isArray(rcvRes.data) ? rcvRes.data : [])
         .filter(m => myImeis.includes(m.imei));
       setSndMessages(snd);
@@ -90,7 +90,7 @@ export default function ChatRoom({ user, devices = [] }) {
 
   const formatDate = (d) => {
     if (!d || d.length < 12) return '';
-    return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(8,10)}:${d.slice(10,12)}`;
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)} ${d.slice(8, 10)}:${d.slice(10, 12)}`;
   };
 
   if (view === 'room' && selectedImei) {
@@ -259,9 +259,11 @@ export default function ChatRoom({ user, devices = [] }) {
 ══════════════════════════════════════ */
 function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, devices }) {
   const [input, setInput] = useState('');
+  const [titleInput, setTitleInput] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
   const MAX = 200;
+  const TITLE_MAX = 20;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -281,11 +283,13 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   }, [input, imei]);
 
   const sendMessage = async () => {
-    if (!input.trim() || input.length > MAX) return;
+    if (!input.trim() || getByteLength(input) > MAX) return;
+    if (getByteLength(titleInput) > TITLE_MAX) { alert(`타이틀은 ${TITLE_MAX}바이트 이내여야 합니다.`); return; }
     setSending(true);
     try {
-      await api.post('/chat/rcv', { imei, text: input.trim() });
+      await api.post('/chat/rcv', { imei, title: titleInput.trim(), text: input.trim() });
       setInput('');
+      setTitleInput('');
       localStorage.removeItem(`draft_${imei}`);
       onRefresh();
     } catch (_) { alert('전송 실패'); }
@@ -302,7 +306,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
 
   const formatDate = (d) => {
     if (!d || d.length < 12) return '';
-    return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(8,10)}:${d.slice(10,12)}`;
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)} ${d.slice(8, 10)}:${d.slice(10, 12)}`;
   };
 
   const getStatusIcon = (m) => {
@@ -363,8 +367,26 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   fontSize: '13px', lineHeight: '1.6', wordBreak: 'break-word',
                   boxShadow: isRcv ? '0 4px 15px rgba(0,212,240,.2)' : '0 2px 8px rgba(0,0,0,.2)',
                 }}>
-                  {!isRcv && m.memo && <div>{m.memo}</div>}
-                  {isRcv && <div>{m.text}</div>}
+                  {!isRcv && (
+                    <>
+                      {m.title && (
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#7dd3fc', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid rgba(255,255,255,.15)' }}>
+                          📌 {m.title}
+                        </div>
+                      )}
+                      {m.memo && <div>{m.memo}</div>}
+                    </>
+                  )}
+                  {isRcv && (
+                    <>
+                      {m.title && (
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#0a4a5a', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid rgba(0,0,0,.15)' }}>
+                          📌 {m.title}
+                        </div>
+                      )}
+                      <div>{m.text}</div>
+                    </>
+                  )}
                   {!isRcv && m.rimei && (
                     <div style={{ marginTop: '5px', fontSize: '9px', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right' }}>
                       ➤ {devices?.find(d => d.imei === m.rimei)?.alias || m.rimei}
@@ -407,21 +429,39 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       {/* 입력창 */}
       <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(0,212,240,.15)', flexShrink: 0, background: 'rgba(10,20,40,.8)', backdropFilter: 'blur(10px)' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <textarea
-              value={input}
-              onChange={e => {
-                const val = e.target.value;
-                if (getByteLength(val) <= MAX) setInput(val);
-              }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
-              rows={2}
-              style={{ width: '100%', padding: '12px 16px', paddingBottom: '24px', borderRadius: '14px', border: `1px solid ${getByteLength(input) > MAX * 0.9 ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)'}`, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: '13px', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: '1.5', backdropFilter: 'blur(5px)' }}
-            />
-            <span style={{ position: 'absolute', bottom: '8px', right: '14px', fontSize: '9px', color: getByteLength(input) > MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
-              {getByteLength(input)}/{MAX}bytes
-            </span>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* 타이틀 입력 */}
+            <div style={{ position: 'relative' }}>
+              <input
+                value={titleInput}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (getByteLength(val) <= TITLE_MAX) setTitleInput(val);
+                }}
+                placeholder="타이틀 (선택, 최대 20bytes)"
+                style={{ width: '100%', padding: '8px 70px 8px 14px', borderRadius: '10px', border: '1px solid rgba(0,212,240,.2)', background: 'rgba(255,255,255,.04)', color: '#fff', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '9px', color: getByteLength(titleInput) > TITLE_MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
+                {getByteLength(titleInput)}/{TITLE_MAX}b
+              </span>
+            </div>
+            {/* 메시지 입력 */}
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={input}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (getByteLength(val) <= MAX) setInput(val);
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
+                rows={2}
+                style={{ width: '100%', padding: '12px 16px', paddingBottom: '24px', borderRadius: '14px', border: `1px solid ${getByteLength(input) > MAX * 0.9 ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)'}`, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: '13px', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: '1.5', backdropFilter: 'blur(5px)' }}
+              />
+              <span style={{ position: 'absolute', bottom: '8px', right: '14px', fontSize: '9px', color: getByteLength(input) > MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
+                {getByteLength(input)}/{MAX}bytes
+              </span>
+            </div>
           </div>
           <button onClick={sendMessage} disabled={sending || !input.trim() || getByteLength(input) > MAX}
             style={{ width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: sending || !input.trim() ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontSize: '20px', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: sending || !input.trim() ? 'none' : '0 4px 15px rgba(0,212,240,.3)', transition: 'all .2s' }}>
@@ -431,7 +471,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       </div>
 
       <style>{`@keyframes sosBlink { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-    </div>
+    </div >
   );
 }
 
@@ -440,19 +480,22 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
 ══════════════════════════════════════ */
 function ComposePopup({ devices, onClose, onSent }) {
   const [selectedImei, setSelectedImei] = useState('');
+  const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
   const MAX = 200;
+  const TITLE_MAX = 20;
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(0,212,240,.25)', background: 'rgba(0,0,0,.3)', color: '#fff', fontSize: '12px', boxSizing: 'border-box', outline: 'none' };
 
   const handleSend = async () => {
     if (!selectedImei || !text.trim()) { alert('장비와 메시지를 입력해주세요.'); return; }
+    if (getByteLength(title) > TITLE_MAX) { alert(`타이틀은 ${TITLE_MAX}바이트 이내여야 합니다.`); return; }
     setSending(true); setResult(null);
     try {
-      await api.post('/chat/rcv', { imei: selectedImei, text: text.trim() });
-      setResult('success'); setText(''); onSent();
+      await api.post('/chat/rcv', { imei: selectedImei, title: title.trim(), text: text.trim() });
+      setResult('success'); setTitle(''); setText(''); onSent();
     } catch (_) { setResult('fail'); }
     finally { setSending(false); }
   };
@@ -479,6 +522,22 @@ function ComposePopup({ devices, onClose, onSent }) {
                 <option key={d.imei} value={d.imei}>{d.alias} ({d.imei}) [{d.type}]</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>타이틀 <span style={{ color: '#4b6483' }}>(선택, 최대 20bytes)</span></label>
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...inp, paddingRight: '70px' }}
+                value={title}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (getByteLength(val) <= TITLE_MAX) setTitle(val);
+                }}
+                placeholder="메시지 제목 (선택사항)" />
+              <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '9px', color: getByteLength(title) > TITLE_MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
+                {getByteLength(title)}/{TITLE_MAX}b
+              </span>
+            </div>
           </div>
 
           <div>

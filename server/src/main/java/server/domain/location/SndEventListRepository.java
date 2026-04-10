@@ -32,6 +32,6 @@ public interface SndEventListRepository extends JpaRepository<SndEventList, Long
 
     List<SndEventList> findByEventcodeOrderByRegDateAsc(String eventcode);
 
-    @Query("SELECT s FROM SndEventList s WHERE s.title IS NOT NULL OR s.memo IS NOT NULL ORDER BY s.regDate ASC")
+    @Query("SELECT s FROM SndEventList s WHERE s.eventcode = '5' ORDER BY s.regDate ASC")
     List<SndEventList> findMessagesWithContent();
 }
