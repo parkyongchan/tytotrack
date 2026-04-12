@@ -1,10 +1,46 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosConfig';
+import { formatDateWithGmt, toSearchDate } from '../utils/dateUtils';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
+const getLang = () => localStorage.getItem('lang') || 'ko';
 const PER_PAGE = 30;
 
+const TVL_T = {
+  ko: {
+    title: 'TEXT VIEW (Location)', sub: 'TRACK / SOS — 1 year data retention',
+    period: '기간', direct: '직접 설정', apply: '적용',
+    allDevices: 'All Devices', loading: '조회 중...', nodata: '데이터가 없습니다.',
+    bulkDelete: '선택삭제', deleteBtn: '삭제', deleteConfirm: '삭제하시겠습니까?',
+    bulkConfirm: (n) => `선택한 ${n}건을 삭제하시겠습니까?`,
+    total: '총', page: 'p',
+    periods: { '24시': '24시', '48시': '48시', '3일': '3일', '7일': '7일', '30일': '30일' },
+    headers: ['TYPE','IMEI','ALIAS','LAT','LON','COURSE','SPEED','ALT','SENT TIME','SERVER TIME','삭제'],
+  },
+  en: {
+    title: 'TEXT VIEW (Location)', sub: 'TRACK / SOS — 1 year data retention',
+    period: 'Period', direct: 'Custom', apply: 'Apply',
+    allDevices: 'All Devices', loading: 'Loading...', nodata: 'No data.',
+    bulkDelete: 'Delete Selected', deleteBtn: 'Del', deleteConfirm: 'Delete this record?',
+    bulkConfirm: (n) => `Delete ${n} selected records?`,
+    total: 'Total', page: 'p',
+    periods: { '24시': '24h', '48시': '48h', '3일': '3d', '7일': '7d', '30일': '30d' },
+    headers: ['TYPE','IMEI','ALIAS','LAT','LON','COURSE','SPEED','ALT','SENT TIME','SERVER TIME','DEL'],
+  },
+  ja: {
+    title: 'テキストビュー（位置）', sub: 'TRACK / SOS — 1年データ保持',
+    period: '期間', direct: '直接設定', apply: '適用',
+    allDevices: '全デバイス', loading: '読込中...', nodata: 'データがありません。',
+    bulkDelete: '選択削除', deleteBtn: '削除', deleteConfirm: 'このデータを削除しますか？',
+    bulkConfirm: (n) => `選択した${n}件を削除しますか？`,
+    total: '合計', page: 'p',
+    periods: { '24시': '24時', '48시': '48時', '3일': '3日', '7일': '7日', '30일': '30日' },
+    headers: ['TYPE','IMEI','ALIAS','LAT','LON','COURSE','SPEED','ALT','送信時間','受信時間','削除'],
+  },
+};
+
 export default function TextViewLocation({ devices, allDevices = [] }) {
+  const t = TVL_T[getLang()] || TVL_T.ko;
   const [selectedImei, setSelectedImei] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [data, setData] = useState([]);
@@ -13,6 +49,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
   const [activePeriod, setActivePeriod] = useState('3일');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [checkedIds, setCheckedIds] = useState([]);
   const isSuperAdmin = getRole() === 'SUPER_ADMIN';
 
   const applyFilter = (rawData, imei) => {
@@ -64,10 +101,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
     };
   };
 
-  const formatDate = (d) => {
-    if (!d || d.length < 12) return d || '-';
-    return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(8,10)}:${d.slice(10,12)}`;
-  };
+  const formatDate = (d) => formatDateWithGmt(d);
 
   const getAlias = (imei) => {
     const d = devices.find(d => d.imei === imei) || allDevices.find(d => d.imei === imei);
@@ -75,11 +109,36 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
   };
 
   const handleDelete = async (idx) => {
-    if (!confirm('삭제하시겠습니까?')) return;
+    if (!confirm(t.deleteConfirm)) return;
     try {
       await api.delete(`/location/snd/${idx}`);
       setData(prev => prev.filter(d => d.idx !== idx));
+      setCheckedIds(prev => prev.filter(id => id !== idx));
     } catch (_) { alert('삭제 실패'); }
+  };
+
+  const handleBulkDelete = async () => {
+    if (checkedIds.length === 0) return;
+    if (!confirm(t.bulkConfirm(checkedIds.length))) return;
+    try {
+      await Promise.all(checkedIds.map(idx => api.delete(`/location/snd/${idx}`)));
+      setData(prev => prev.filter(d => !checkedIds.includes(d.idx)));
+      setCheckedIds([]);
+    } catch (_) { alert('삭제 실패'); }
+  };
+
+  const toggleCheck = (idx) => {
+    setCheckedIds(prev => prev.includes(idx) ? prev.filter(id => id !== idx) : [...prev, idx]);
+  };
+
+  const toggleAll = () => {
+    const pagedIds = paged.map(r => r.idx);
+    const allChecked = pagedIds.every(id => checkedIds.includes(id));
+    if (allChecked) {
+      setCheckedIds(prev => prev.filter(id => !pagedIds.includes(id)));
+    } else {
+      setCheckedIds(prev => [...new Set([...prev, ...pagedIds])]);
+    }
   };
 
   const filtered = data.filter(d => {
@@ -135,15 +194,15 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
 
       {/* 헤더 */}
       <div style={{ flexShrink: 0 }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>TEXT VIEW (Location)</div>
-        <div style={{ fontSize: '10px', color: '#4b6483', marginTop: '2px' }}>TRACK / SOS — 1 year data retention</div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>{t.title}</div>
+        <div style={{ fontSize: '10px', color: '#4b6483', marginTop: '2px' }}>{t.sub}</div>
       </div>
 
       {/* 컨트롤 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flexShrink: 0 }}>
 
         {/* 기간 버튼 */}
-        <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>기간</span>
+        <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{t.period}</span>
         {['24시', '48시', '3일', '7일', '30일'].map(p => (
           <button key={p} onClick={() => {
             setActivePeriod(p);
@@ -151,12 +210,12 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
             fetchByRange(start, end);
           }}
             style={{ padding: '4px 10px', background: activePeriod === p ? '#00d4f0' : 'rgba(0,212,240,.08)', border: `1px solid ${activePeriod === p ? '#00d4f0' : 'rgba(0,212,240,.2)'}`, borderRadius: '6px', color: activePeriod === p ? '#0a1628' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-            {p}
+            {t.periods[p] || p}
           </button>
         ))}
 
         {/* 직접 설정 */}
-        <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", marginLeft: '4px' }}>직접 설정</span>
+        <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", marginLeft: '4px' }}>{t.direct}</span>
         <input type="datetime-local" value={customStart} onChange={e => setCustomStart(e.target.value)}
           style={{ padding: '3px 6px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '9px', outline: 'none', colorScheme: 'dark' }} />
         <span style={{ fontSize: '10px', color: '#6b8fae' }}>~</span>
@@ -170,7 +229,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
           fetchByRange(start, end);
         }}
           style={{ padding: '4px 10px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-          적용
+          {t.apply}
         </button>
 
         <div style={{ width: '1px', height: '20px', background: 'rgba(0,212,240,.2)', margin: '0 4px' }} />
@@ -199,7 +258,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
             .finally(() => setLoading(false));
         }}
           style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(0,212,240,.25)', background: 'rgba(0,0,0,.3)', color: '#fff', fontSize: '11px', outline: 'none' }}>
-          <option value="">All Devices</option>
+          <option value="">{t.allDevices}</option>
           {devices.filter(d => d.active !== false).map(d => (
             <option key={d.imei} value={d.imei}>{d.alias} ({d.imei})</option>
           ))}
@@ -215,6 +274,12 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
 
         {/* 다운로드 */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+          {isSuperAdmin && checkedIds.length > 0 && (
+            <button onClick={handleBulkDelete}
+              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              🗑 {t.bulkDelete} ({checkedIds.length})
+            </button>
+          )}
           <button onClick={downloadCSV} style={btnStyle('#10b981')}>↓ CSV</button>
           <button onClick={downloadKML} style={btnStyle('#3b82f6')}>↓ KML</button>
           <button onClick={downloadGPX} style={btnStyle('#8b5cf6')}>↓ GPX</button>
@@ -227,7 +292,15 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: '900px' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,.4)', position: 'sticky', top: 0, zIndex: 1 }}>
-                {['TYPE', 'IMEI', 'ALIAS', 'LAT', 'LON', 'COURSE', 'SPEED', 'ALT', 'SENT TIME', 'SERVER TIME', ...(isSuperAdmin ? ['삭제'] : [])].map(h => (
+                {isSuperAdmin && (
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,212,240,.18)', width: '30px' }}>
+                    <input type="checkbox"
+                      checked={paged.length > 0 && paged.every(r => checkedIds.includes(r.idx))}
+                      onChange={toggleAll}
+                      style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                  </th>
+                )}
+                {[...t.headers.slice(0, 10), ...(isSuperAdmin ? [t.headers[10]] : [])].map(h => (
                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -235,16 +308,24 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
             <tbody>
               {paged.length === 0 ? (
                 <tr><td colSpan={isSuperAdmin ? 11 : 10} style={{ padding: '30px', textAlign: 'center', color: '#6b8fae' }}>
-                  {loading ? '조회 중...' : '데이터가 없습니다.'}
+                  {loading ? t.loading : t.nodata}
                 </td></tr>
               ) : paged.map((row) => {
                 const pos = parsePosition(row.position);
                 const isSOS = row.eventcode === '4';
                 return (
                   <tr key={row.idx}
-                    style={{ borderBottom: '1px solid rgba(0,212,240,.05)', background: isSOS ? 'rgba(239,68,68,.03)' : 'transparent' }}
+                    style={{ borderBottom: '1px solid rgba(0,212,240,.05)', background: checkedIds.includes(row.idx) ? 'rgba(0,212,240,.05)' : isSOS ? 'rgba(239,68,68,.03)' : 'transparent' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.05)'}
-                    onMouseLeave={e => e.currentTarget.style.background = isSOS ? 'rgba(239,68,68,.03)' : 'transparent'}>
+                    onMouseLeave={e => e.currentTarget.style.background = checkedIds.includes(row.idx) ? 'rgba(0,212,240,.05)' : isSOS ? 'rgba(239,68,68,.03)' : 'transparent'}>
+                    {isSuperAdmin && (
+                      <td style={{ padding: '6px 10px' }}>
+                        <input type="checkbox"
+                          checked={checkedIds.includes(row.idx)}
+                          onChange={() => toggleCheck(row.idx)}
+                          style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                      </td>
+                    )}
                     <td style={{ padding: '6px 10px' }}>
                       <span style={{ fontSize: '9px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: isSOS ? 'rgba(239,68,68,.2)' : 'rgba(59,130,246,.15)', color: isSOS ? '#ef4444' : '#60a5fa' }}>
                         {isSOS ? 'SOS' : 'TRACK'}
@@ -262,7 +343,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
                     {isSuperAdmin && (
                       <td style={{ padding: '6px 10px' }}>
                         <button onClick={() => handleDelete(row.idx)}
-                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px' }}>삭제</button>
+                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px' }}>{t.deleteBtn}</button>
                       </td>
                     )}
                   </tr>
@@ -276,7 +357,7 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
         {totalPages > 1 && (
           <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <span style={{ fontSize: '11px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
-              총 {filtered.length}건 / {page}/{totalPages}p
+              {t.total} {filtered.length}건 / {page}/{totalPages}{t.page}
             </span>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === 1 ? 0.3 : 1 }}>«</button>

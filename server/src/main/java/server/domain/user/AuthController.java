@@ -46,7 +46,8 @@ public class AuthController {
                 "name", user.getName(),
                 "loginId", user.getLoginId(),
                 "role", user.getRole().name(),
-                "companyId", user.getCompanyId() != null ? user.getCompanyId() : ""
+                "companyId", user.getCompanyId() != null ? user.getCompanyId() : "",
+                "gmtZone", user.getGmtZone() != null ? user.getGmtZone() : 9
         ));
     }
 

@@ -117,6 +117,10 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
   const handleSubmit = async () => {
     if (!editUser && !dupChecked) { alert('아이디 중복체크를 해주세요.'); return; }
     if (form.password !== form.passwordConfirm) { setPwMsg(t.pwNoMatch); return; }
+    if (form.role === 'ADMIN' && !form.companyId?.trim()) {
+      alert('ADMIN 계정은 Company ID가 필수입니다.');
+      return;
+    }
     try {
       const payload = { ...form };
       delete payload.passwordConfirm;
@@ -153,7 +157,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
   const closeForm = () => {
     setShowForm(false); setEditUser(null);
-    setForm({ ...initForm, companyId: myRole !== 'SUPER_ADMIN' ? (user?.companyId || '') : '' });
+    setForm({ ...initForm, companyId: myRole === 'ADMIN' ? (user?.companyId || '') : '' });
     setPwMsg(''); setDupMsg({ text: '', ok: false }); setDupChecked(false);
   };
 
@@ -263,7 +267,10 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
               </div>
 
               {/* 비밀번호 — REVIEWER는 본인 수정 시만, SUPER_ADMIN은 항상 */}
-              {(myRole === 'SUPER_ADMIN' || (editUser && editUser.loginId === localStorage.getItem('loginId'))) && (
+              {(myRole === 'SUPER_ADMIN' || 
+                (editUser && editUser.loginId === localStorage.getItem('loginId')) ||
+                (myRole === 'ADMIN' && editUser && editUser.role === 'REVIEWER')
+              ) && (
                 <>
                   <div>
                     <label style={lbl}>{t.pw}</label>
@@ -308,12 +315,10 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
               {/* Company ID */}
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>COMPANY ID <span style={{ color: '#4b6483', fontSize: '9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
+                <label style={lbl}>COMPANY ID {form.role === 'ADMIN' && <span style={{ color: '#ef4444' }}>* 필수</span>} <span style={{ color: '#4b6483', fontSize: '9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
                 {(() => {
-                  // SUPER_ADMIN: 항상 수정 가능
-                  // ADMIN: 최초 설정 후 수정 불가 (editUser의 companyId가 있으면 고정)
-                  // REVIEWER: 항상 수정 불가
-                  const isLocked = myRole === 'REVIEWER' || (myRole === 'ADMIN' && editUser?.companyId);
+                  // ADMIN은 항상 본인 company_id 자동 적용 + 수정 불가
+                  const isLocked = myRole === 'REVIEWER' || myRole === 'ADMIN';
                   return (
                     <input style={{ ...inp, background: isLocked ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: isLocked ? '#6b8fae' : '#fff' }}
                       value={form.companyId || ''}
@@ -420,7 +425,7 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: 'rgba(0,0,0,.4)' }}>
-              {[t.no, t.id, t.name, t.email, t.country, 'GMT', t.role, t.status, t.manage].map(h => (
+              {[t.no, t.id, t.name, t.email, t.country, 'GMT', 'Company', t.role, t.status, t.manage].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)' }}>{h}</th>
               ))}
             </tr>
@@ -440,6 +445,9 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                 <td style={{ padding: '8px 12px', color: '#6b8fae' }}>{u.country}</td>
                 <td style={{ padding: '8px 12px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
                   GMT{u.gmtZone >= 0 ? '+' : ''}{u.gmtZone ?? 9}
+                </td>
+                <td style={{ padding: '8px 12px', color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}>
+                  {u.companyId || '-'}
                 </td>
                 <td style={{ padding: '8px 12px' }}>
                   <span style={{

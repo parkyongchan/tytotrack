@@ -15,9 +15,258 @@ import { Style, Fill, Stroke, Circle as CircleStyle, Text } from 'ol/style';
 import 'ol/ol.css';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
-const lang = localStorage.getItem('lang') || 'ko';
+const getLang = () => localStorage.getItem('lang') || 'ko';
+
+const DEV_T = {
+  ko: {
+    title: 'DEVICE SETTINGS',
+    register: '＋ 장비 등록', edit: '✏️ 장비 수정', delete: '🗑 장비 삭제',
+    profile: '📋 프로파일', setting: '⚙️ 장비 설정', geo: '🌐 GEO Fence',
+    selected: (n) => `${n}개 선택됨`,
+    headers: ['IMEI','Alias','Model','Type','위성','회사ID','개통일','Profile','상태','관리'],
+    noDevice: '등록된 장비 없음',
+    editBtn: '수정', stopBtn: '중지', activeBtn: '활성', deleteBtn: '삭제',
+    activatedMsg: '✅ 활성화 되었습니다.', stoppedMsg: '⏸ 중지 되었습니다.',
+    selectOne: '장비 1개를 선택해주세요.', selectAny: '장비를 선택해주세요.',
+    deleteConfirm: (n) => `${n}개 장비를 삭제하시겠습니까?`,
+    deleteOneConfirm: (alias) => `${alias} 장비를 삭제하시겠습니까?`,
+    // RegisterPopup
+    regTitle: '📡 장비 등록', aliasLabel: '유닛 네임 (ALIAS) *', aliasPh: '장비 별칭',
+    imeiLabel: 'IMEI *', imeiPh: '15자리 IMEI', searchBtn: '검색',
+    imei15: 'IMEI는 15자리여야 합니다.', imeiDup: '이미 등록된 장비입니다.',
+    imeiOk: '등록 가능한 장비입니다.', imeiErr: '확인 중 오류가 발생했습니다.',
+    modelLabel: '장비 종류 (TYPE) *', typeLabel: '타입 *',
+    profileLabel: '프로파일', profileNone: '— 선택 안 함 —',
+    accountLabel: '계정 할당 *', accountNone: '— 계정 선택 —',
+    openDateLabel: '개통일자 *', required: '필수 항목을 입력해주세요.',
+    cancel: '취소', save: '저장', regBtn: '등록',
+    // EditPopup
+    editTitle: '✏️ 장비 수정',
+    imeiFixed: 'IMEI (수정불가)', modelFixed: 'MODEL (수정불가)', typeFixed: 'TYPE (수정불가)',
+    groupLabel: '그룹', groupPh: '그룹명',
+    // ProfilePopup
+    profTitle: '📋 프로파일 & Messaging Hub',
+    profSosLabel: 'SOS / TRACK 알림 수신자', profNameLabel: '프로파일 명', profNamePh: '프로파일 이름',
+    sosEmailLabel: 'SOS 이메일', sosKakaoLabel: 'SOS 카카오톡', trackEmailLabel: 'TRACK 이메일 수신자',
+    addChannel: '+ 채널 추가', channelSave: '저장', channelCancel: '취소',
+    clear: '클리어', saveSetting: '알림 설정 저장', createProfile: '+ 프로파일 생성',
+    profHeaders: ['No','프로파일명','SOS Email','TRACK Email','Actions'],
+    noProfile: '저장된 프로파일이 없습니다.', close: '닫기',
+    deleteConfirmSimple: '삭제하시겠습니까?',
+    // DeviceSettingPanel
+    firmware: 'Firmware', verCall: '— VER-Call 후 표시됩니다.',
+    cycleTime: '주기 Time', cycleDist: '주기 Distance', unitMin: '(단위:분)', unit10m: '(단위:10m)',
+    selectOption: '-- 선택 --', digits4: '4자리',
+    canUse: 'CAN 사용 여부', canTime: 'CAN 시간 설정', canGpsUse: 'CAN+GPS 사용여부',
+    canGpsTime: 'CAN+GPS 시간 설정', sosUse: 'SOS 사용 여부',
+    recipient: '수신처', recipientUnit: '(유닛코드/IMEI)', recipientPh: '10자리(유닛코드) 또는 15자리(IMEI)',
+    recipientErr: '10자리 또는 15자리만 가능합니다.',
+    recipientImei: '✓ IMEI (15자리)', recipientUnit2: '✓ 유닛코드 (10자리)',
+    saveAll: '💾 모든 설정 저장', ackNote: '※ ACK 수신시까지 최대 10분 대기',
+    sendCmd: '전송 커맨드: ', waiting: (r,m) => `⏳ 대기 중... (${r}/${m}회)`,
+    failed: (r,m) => `❌ 실패 (${r}/${m}회)`, retry: '재전송',
+    maxRetry: (m) => `❌ 재전송 ${m}회 초과 — 저장 비활성화`, success: '✅ 성공',
+    deviceCall: 'DEVICE CALL', callNote: '※ 클릭 후 1분간 전체 비활성화',
+    noChange: '변경된 항목이 없습니다.', maxRetryAlert: '재전송 횟수(3회)를 초과했습니다. 저장이 비활성화됩니다.',
+    maxRetryAlert2: '재전송 횟수(3회)를 초과했습니다.',
+    gpsLabels: { '0':'없음','1':'약함','2':'보통','3':'최상' },
+    signalLabels: { '0':'없음','1':'매우약함','2':'보통','3':'정상','4':'양호','5':'최상' },
+    // GeoFence
+    geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'Device:',
+    geoIntersect: '⚠️ 선분이 교차됩니다. 다른 위치를 선택해주세요.',
+    geoDrawNote: (max) => `지도 클릭으로 꼭짓점 추가 (최소 3개, 최대 ${max}개)`,
+    geoCoordList: 'COORDINATE LIST', geoClickNote: '지도를 클릭하여 꼭짓점을 추가하세요',
+    geoSlot: 'GEO-SETTING 슬롯 (1-5)', geoLastSent: '📡 마지막 전송:',
+    geoSavedSlot: (n,m) => `✓ 저장된 슬롯: ${n}개 꼭짓점 / ${m}`,
+    geoCmdPreview: 'COMMAND PREVIEW', geoCmdNote: '— 포트 3개 이상 추가 후 생성됩니다 —',
+    geoGuideTitle: '📌 사용 안내',
+    geoGuide1: '• 슬롯(GEO-1~5)을 클릭하여 선택하세요.',
+    geoGuide2: ['• 지도에서 꼭짓점을 추가 후 ', '저장', '하면 슬롯이 ', '빨간색', '으로 변합니다.'],
+    geoGuide3: '• 새 슬롯을 선택해 추가 저장할 수 있습니다. (총 5개)',
+    geoGuide4: ['• ', '전송', '이 완료된 슬롯은 ', '노란색', '으로 변합니다.'],
+    geoGuide5: '※ 전송 후 2분간 잠금 / 실패 시 최대 3회 자동 재시도',
+    geoGuide6: '💡 노란색 슬롯은 지도 상세보기창의 GEO Fence 버튼을 클릭하면 지도에서 확인 가능합니다.',
+    geoWaiting: (r,m) => `⏳ 대기 중... (${r}/${m}회)`,
+    geoFailed: (r,m) => `❌ 실패 (${r}/${m}회)`, geoRetry: '재전송',
+    geoMaxRetry: (m) => `❌ 재전송 ${m}회 초과 — 잠금`, geoSuccess: '✅ 전송 성공',
+    geoLocked: '🔒 2분간 잠금 중...',
+    geoSaveBtn: '💾 저장', geoSendBtn: '▶ 전송',
+    geoSlotSelect: 'GEO 슬롯을 선택해주세요.', geoMinPts: '최소 3개 좌표가 필요합니다.',
+    geoSaved: (slot) => `${slot}에 저장 완료!`, geoSaveFail: '저장 실패',
+    geoLockAlert: '전송 후 2분간 잠금됩니다.', geoMaxRetryAlert: '재전송 3회 초과',
+    min: '분', hour: '시간',
+    ttG1on: 'GEO 서비스 활성화',
+    ttG2off: 'GEO 서비스 비활성화',
+    ttDef1: '해당 구역으로 들어올 때 작동합니다',
+    ttDef2: '해당 구역에서 나갈 때 작동합니다',
+    ttDef3: '진입/이탈 둘 다 조건으로 작동합니다',
+    ttIntervalS: '들어올 때(진입) 시간 인터벌입니다',
+    ttIntervalT: '나갈 때(이탈) 시간 인터벌입니다',
+  },
+  en: {
+    title: 'DEVICE SETTINGS',
+    register: '＋ Register', edit: '✏️ Edit', delete: '🗑 Delete',
+    profile: '📋 Profile', setting: '⚙️ Settings', geo: '🌐 GEO Fence',
+    selected: (n) => `${n} selected`,
+    headers: ['IMEI','Alias','Model','Type','Satellite','Company','Open Date','Profile','Status','Manage'],
+    noDevice: 'No devices registered',
+    editBtn: 'Edit', stopBtn: 'Stop', activeBtn: 'Enable', deleteBtn: 'Delete',
+    activatedMsg: '✅ Activated.', stoppedMsg: '⏸ Stopped.',
+    selectOne: 'Please select 1 device.', selectAny: 'Please select a device.',
+    deleteConfirm: (n) => `Delete ${n} device(s)?`,
+    deleteOneConfirm: (alias) => `Delete device ${alias}?`,
+    regTitle: '📡 Register Device', aliasLabel: 'Unit Name (ALIAS) *', aliasPh: 'Device alias',
+    imeiLabel: 'IMEI *', imeiPh: '15-digit IMEI', searchBtn: 'Search',
+    imei15: 'IMEI must be 15 digits.', imeiDup: 'Already registered.',
+    imeiOk: 'Available to register.', imeiErr: 'Error occurred.',
+    modelLabel: 'Device Type *', typeLabel: 'Type *',
+    profileLabel: 'Profile', profileNone: '— None —',
+    accountLabel: 'Assign Account *', accountNone: '— Select Account —',
+    openDateLabel: 'Activation Date *', required: 'Please fill in required fields.',
+    cancel: 'Cancel', save: 'Save', regBtn: 'Register',
+    editTitle: '✏️ Edit Device',
+    imeiFixed: 'IMEI (read-only)', modelFixed: 'MODEL (read-only)', typeFixed: 'TYPE (read-only)',
+    groupLabel: 'Group', groupPh: 'Group name',
+    profTitle: '📋 Profile & Messaging Hub',
+    profSosLabel: 'SOS / TRACK Alert Recipients', profNameLabel: 'Profile Name', profNamePh: 'Profile name',
+    sosEmailLabel: 'SOS Email', sosKakaoLabel: 'SOS KakaoTalk', trackEmailLabel: 'TRACK Email',
+    addChannel: '+ Add Channel', channelSave: 'Save', channelCancel: 'Cancel',
+    clear: 'Clear', saveSetting: 'Save Alert Settings', createProfile: '+ Create Profile',
+    profHeaders: ['No','Profile Name','SOS Email','TRACK Email','Actions'],
+    noProfile: 'No profiles saved.', close: 'Close',
+    deleteConfirmSimple: 'Delete this item?',
+    firmware: 'Firmware', verCall: '— Shows after VER-Call —',
+    cycleTime: 'Cycle Time', cycleDist: 'Cycle Distance', unitMin: '(unit: min)', unit10m: '(unit: 10m)',
+    selectOption: '-- Select --', digits4: '4 digits',
+    canUse: 'CAN Enable', canTime: 'CAN Time Setting', canGpsUse: 'CAN+GPS Enable',
+    canGpsTime: 'CAN+GPS Time Setting', sosUse: 'SOS Enable',
+    recipient: 'Recipient', recipientUnit: '(Unit Code/IMEI)', recipientPh: '10-digit (unit) or 15-digit (IMEI)',
+    recipientErr: 'Must be 10 or 15 digits.',
+    recipientImei: '✓ IMEI (15 digits)', recipientUnit2: '✓ Unit Code (10 digits)',
+    saveAll: '💾 Save All Settings', ackNote: '※ Wait up to 10 min for ACK',
+    sendCmd: 'Command: ', waiting: (r,m) => `⏳ Waiting... (${r}/${m})`,
+    failed: (r,m) => `❌ Failed (${r}/${m})`, retry: 'Retry',
+    maxRetry: (m) => `❌ ${m} retries exceeded — disabled`, success: '✅ Success',
+    deviceCall: 'DEVICE CALL', callNote: '※ Disabled for 1 min after click',
+    noChange: 'No changes detected.', maxRetryAlert: 'Max retries (3) exceeded. Save disabled.',
+    maxRetryAlert2: 'Max retries (3) exceeded.',
+    gpsLabels: { '0':'None','1':'Weak','2':'Fair','3':'Best' },
+    signalLabels: { '0':'None','1':'Very Weak','2':'Fair','3':'Normal','4':'Good','5':'Best' },
+    geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'Device:',
+    geoIntersect: '⚠️ Segments intersect. Choose a different location.',
+    geoDrawNote: (max) => `Click map to add vertices (min 3, max ${max})`,
+    geoCoordList: 'COORDINATE LIST', geoClickNote: 'Click the map to add vertices',
+    geoSlot: 'GEO-SETTING Slots (1-5)', geoLastSent: '📡 Last Sent:',
+    geoSavedSlot: (n,m) => `✓ Saved: ${n} vertices / ${m}`,
+    geoCmdPreview: 'COMMAND PREVIEW', geoCmdNote: '— Add 3+ points to generate —',
+    geoGuideTitle: '📌 Instructions',
+    geoGuide1: '• Click a slot (GEO-1~5) to select.',
+    geoGuide2: ['• Add vertices then click ', 'Save', ' — slot turns ', 'red', '.'],
+    geoGuide3: '• Select another slot to save more. (max 5)',
+    geoGuide4: ['• After ', 'Send', ', slot turns ', 'yellow', '.'],
+    geoGuide5: '※ Locked 2 min after send / max 3 retries on failure',
+    geoGuide6: '💡 Yellow slots can be viewed via GEO Fence button in map detail view.',
+    geoWaiting: (r,m) => `⏳ Waiting... (${r}/${m})`,
+    geoFailed: (r,m) => `❌ Failed (${r}/${m})`, geoRetry: 'Retry',
+    geoMaxRetry: (m) => `❌ ${m} retries exceeded — locked`, geoSuccess: '✅ Send Success',
+    geoLocked: '🔒 Locked for 2 min...',
+    geoSaveBtn: '💾 Save', geoSendBtn: '▶ Send',
+    geoSlotSelect: 'Please select a GEO slot.', geoMinPts: 'Minimum 3 coordinates required.',
+    geoSaved: (slot) => `Saved to ${slot}!`, geoSaveFail: 'Save failed',
+    geoLockAlert: 'Locked for 2 min after send.', geoMaxRetryAlert: '3 retries exceeded',
+    min: 'min', hour: 'hr',
+    ttG1on: 'Activate GEO service',
+    ttG2off: 'Deactivate GEO service',
+    ttDef1: 'Triggers when entering the zone',
+    ttDef2: 'Triggers when exiting the zone',
+    ttDef3: 'Triggers on both entry and exit',
+    ttIntervalS: 'Time interval for zone entry',
+    ttIntervalT: 'Time interval for zone exit',
+  },
+  ja: {
+    title: 'デバイス設定',
+    register: '＋ デバイス登録', edit: '✏️ 編集', delete: '🗑 削除',
+    profile: '📋 プロファイル', setting: '⚙️ デバイス設定', geo: '🌐 GEO Fence',
+    selected: (n) => `${n}個選択中`,
+    headers: ['IMEI','エイリアス','モデル','タイプ','衛星','会社ID','開通日','プロファイル','状態','管理'],
+    noDevice: '登録済みデバイスなし',
+    editBtn: '編集', stopBtn: '停止', activeBtn: '有効', deleteBtn: '削除',
+    activatedMsg: '✅ 有効化されました。', stoppedMsg: '⏸ 停止されました。',
+    selectOne: 'デバイスを1つ選択してください。', selectAny: 'デバイスを選択してください。',
+    deleteConfirm: (n) => `${n}個のデバイスを削除しますか？`,
+    deleteOneConfirm: (alias) => `デバイス ${alias} を削除しますか？`,
+    regTitle: '📡 デバイス登録', aliasLabel: 'ユニット名 (ALIAS) *', aliasPh: 'デバイスエイリアス',
+    imeiLabel: 'IMEI *', imeiPh: '15桁のIMEI', searchBtn: '検索',
+    imei15: 'IMEIは15桁である必要があります。', imeiDup: '既に登録済みです。',
+    imeiOk: '登録可能なデバイスです。', imeiErr: 'エラーが発生しました。',
+    modelLabel: 'デバイス種類 *', typeLabel: 'タイプ *',
+    profileLabel: 'プロファイル', profileNone: '— 選択なし —',
+    accountLabel: 'アカウント割当 *', accountNone: '— アカウント選択 —',
+    openDateLabel: '開通日 *', required: '必須項目を入力してください。',
+    cancel: 'キャンセル', save: '保存', regBtn: '登録',
+    editTitle: '✏️ デバイス編集',
+    imeiFixed: 'IMEI (変更不可)', modelFixed: 'MODEL (変更不可)', typeFixed: 'TYPE (変更不可)',
+    groupLabel: 'グループ', groupPh: 'グループ名',
+    profTitle: '📋 プロファイル & メッセージングハブ',
+    profSosLabel: 'SOS / TRACK 通知受信者', profNameLabel: 'プロファイル名', profNamePh: 'プロファイル名',
+    sosEmailLabel: 'SOS メール', sosKakaoLabel: 'SOS カカオトーク', trackEmailLabel: 'TRACK メール',
+    addChannel: '+ チャンネル追加', channelSave: '保存', channelCancel: 'キャンセル',
+    clear: 'クリア', saveSetting: '通知設定を保存', createProfile: '+ プロファイル作成',
+    profHeaders: ['No','プロファイル名','SOS Email','TRACK Email','操作'],
+    noProfile: '保存されたプロファイルがありません。', close: '閉じる',
+    deleteConfirmSimple: '削除しますか？',
+    firmware: 'ファームウェア', verCall: '— VER-Call後に表示されます —',
+    cycleTime: '周期 Time', cycleDist: '周期 Distance', unitMin: '(単位:分)', unit10m: '(単位:10m)',
+    selectOption: '-- 選択 --', digits4: '4桁',
+    canUse: 'CAN 使用', canTime: 'CAN 時間設定', canGpsUse: 'CAN+GPS 使用',
+    canGpsTime: 'CAN+GPS 時間設定', sosUse: 'SOS 使用',
+    recipient: '受信先', recipientUnit: '(ユニットコード/IMEI)', recipientPh: '10桁(ユニット)または15桁(IMEI)',
+    recipientErr: '10桁または15桁のみ有効です。',
+    recipientImei: '✓ IMEI (15桁)', recipientUnit2: '✓ ユニットコード (10桁)',
+    saveAll: '💾 全設定を保存', ackNote: '※ ACK受信まで最大10分待機',
+    sendCmd: '送信コマンド: ', waiting: (r,m) => `⏳ 待機中... (${r}/${m}回)`,
+    failed: (r,m) => `❌ 失敗 (${r}/${m}回)`, retry: '再送信',
+    maxRetry: (m) => `❌ 再送信${m}回超過 — 無効`, success: '✅ 成功',
+    deviceCall: 'デバイスコール', callNote: '※ クリック後1分間無効',
+    noChange: '変更項目がありません。', maxRetryAlert: '再送信回数(3回)を超えました。保存が無効になります。',
+    maxRetryAlert2: '再送信回数(3回)を超えました。',
+    gpsLabels: { '0':'なし','1':'弱','2':'普通','3':'最良' },
+    signalLabels: { '0':'なし','1':'非常に弱','2':'普通','3':'正常','4':'良好','5':'最良' },
+    geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'デバイス:',
+    geoIntersect: '⚠️ 線分が交差しています。別の位置を選択してください。',
+    geoDrawNote: (max) => `地図をクリックして頂点を追加 (最小3、最大${max})`,
+    geoCoordList: '座標リスト', geoClickNote: '地図をクリックして頂点を追加してください',
+    geoSlot: 'GEO設定スロット (1-5)', geoLastSent: '📡 最終送信:',
+    geoSavedSlot: (n,m) => `✓ 保存済: ${n}頂点 / ${m}`,
+    geoCmdPreview: 'コマンドプレビュー', geoCmdNote: '— 3点以上追加後に生成されます —',
+    geoGuideTitle: '📌 使用方法',
+    geoGuide1: '• スロット(GEO-1~5)をクリックして選択。',
+    geoGuide2: ['• 頂点を追加後 ', '保存', ' するとスロットが ', '赤色', ' に変わります。'],
+    geoGuide3: '• 別スロットを選択して追加保存できます。(最大5個)',
+    geoGuide4: ['• ', '送信', ' 完了後スロットが ', '黄色', ' に変わります。'],
+    geoGuide5: '※ 送信後2分ロック / 失敗時最大3回リトライ',
+    geoGuide6: '💡 黄色スロットは地図詳細画面のGEO Fenceボタンで確認できます。',
+    geoWaiting: (r,m) => `⏳ 待機中... (${r}/${m}回)`,
+    geoFailed: (r,m) => `❌ 失敗 (${r}/${m}回)`, geoRetry: '再送信',
+    geoMaxRetry: (m) => `❌ 再送信${m}回超過 — ロック`, geoSuccess: '✅ 送信成功',
+    geoLocked: '🔒 2分間ロック中...',
+    geoSaveBtn: '💾 保存', geoSendBtn: '▶ 送信',
+    geoSlotSelect: 'GEOスロットを選択してください。', geoMinPts: '最低3座標が必要です。',
+    geoSaved: (slot) => `${slot}に保存完了！`, geoSaveFail: '保存失敗',
+    geoLockAlert: '送信後2分間ロックされます。', geoMaxRetryAlert: '再送信3回超過',
+    min: '分', hour: '時間',
+    ttG1on: 'GEOサービスを有効化',
+    ttG2off: 'GEOサービスを無効化',
+    ttDef1: '対象エリアに入ったときに作動します',
+    ttDef2: '対象エリアから出たときに作動します',
+    ttDef3: '進入・離脱の両方で作動します',
+    ttIntervalS: '進入時の時間インターバルです',
+    ttIntervalT: '離脱時の時間インターバルです',
+  },
+};
 
 export default function DevicesPage({ devices, onRefresh }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const [selected, setSelected] = useState([]);
   const [page, setPage] = useState(1);
   const [showRegister, setShowRegister] = useState(false);
@@ -63,6 +312,7 @@ export default function DevicesPage({ devices, onRefresh }) {
 
   const myRole = getRole();
   const canEdit = myRole === 'SUPER_ADMIN' || myRole === 'ADMIN';
+  const canEditDevice = myRole === 'SUPER_ADMIN' || myRole === 'ADMIN' || myRole === 'REVIEWER';
   const isSuperAdmin = myRole === 'SUPER_ADMIN';
 
   return (
@@ -71,61 +321,61 @@ export default function DevicesPage({ devices, onRefresh }) {
       {/* 헤더 + 액션 버튼 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0', marginRight: '8px' }}>
-          DEVICE SETTINGS
+          {t.title}
         </span>
         <button onClick={onRefresh} style={btnStyle('#6b8fae')}>↻</button>
 
         {/* 장비 등록 — Super Admin + Admin */}
         {canEdit && (
           <button onClick={() => setShowRegister(true)} style={btnStyle('#10b981')}>
-            ＋ 장비 등록
+            {t.register}
           </button>
         )}
 
-        {/* 장비 수정 — Admin 이상, 1개 선택 시 */}
-        {canEdit && (
-          <button onClick={() => selected.length === 1 ? setShowEdit(true) : alert('장비 1개를 선택해주세요.')}
+        {/* 장비 수정 — Reviewer 이상, 1개 선택 시 */}
+        {canEditDevice && (
+          <button onClick={() => selected.length === 1 ? setShowEdit(true) : alert(t.selectOne)}
             style={btnStyle('#00d4f0', selected.length !== 1)}>
-            ✏️ 장비 수정
+            {t.edit}
           </button>
         )}
 
         {/* 장비 삭제 — Super Admin + Admin */}
         {canEdit && (
           <button onClick={async () => {
-            if (selected.length === 0) { alert('장비를 선택해주세요.'); return; }
-            if (!confirm(`${selected.length}개 장비를 삭제하시겠습니까?`)) return;
+            if (selected.length === 0) { alert(t.selectAny); return; }
+            if (!confirm(t.deleteConfirm(selected.length))) return;
             for (const imei of selected) { try { await api.delete(`/devices/${imei}`); } catch { } }
             setSelected([]); onRefresh();
           }} style={btnStyle('#ef4444', selected.length === 0)}>
-            🗑 장비 삭제
+            {t.delete}
           </button>
         )}
 
-        {/* 프로파일 — Admin 이상 */}
-        {canEdit && (
+        {/* 프로파일 — Reviewer 이상 */}
+        {canEditDevice && (
           <button onClick={() => setShowProfile(true)} style={btnStyle('#8b5cf6')}>
-            📋 프로파일
+            {t.profile}
           </button>
         )}
 
-        {/* 장비 설정 — Admin 이상, 1개 선택 */}
-        {canEdit && (
-          <button onClick={() => selected.length === 1 ? setShowDeviceSetting(true) : alert('장비 1개를 선택해주세요.')}
+        {/* 장비 설정 — Reviewer 이상, 1개 선택 */}
+        {canEditDevice && (
+          <button onClick={() => selected.length === 1 ? setShowDeviceSetting(true) : alert(t.selectOne)}
             style={btnStyle('#f59e0b', selected.length !== 1)}>
-            ⚙️ 장비 설정
+            {t.setting}
           </button>
         )}
 
         {/* GEO Fence — 1개 선택 시만 활성화 */}
-        <button onClick={() => selected.length === 1 ? setShowGeo(true) : alert('장비 1개를 선택해주세요.')}
+        <button onClick={() => selected.length === 1 ? setShowGeo(true) : alert(t.selectOne)}
           style={btnStyle('#10b981', selected.length !== 1)}>
-          🌐 GEO Fence
+          {t.geo}
         </button>
 
         {selected.length > 0 && (
           <span style={{ fontSize: '10px', color: '#6b8fae', marginLeft: '4px' }}>
-            {selected.length}개 선택됨
+            {t.selected(selected.length)}
           </span>
         )}
       </div>
@@ -139,14 +389,14 @@ export default function DevicesPage({ devices, onRefresh }) {
                 <input type="checkbox" checked={selected.length === devices.length && devices.length > 0}
                   onChange={toggleAll} style={{ cursor: 'pointer' }} />
               </th>
-              {['IMEI', 'Alias', 'Model', 'Type', '계정', '개통일', 'Profile', '상태', ...(canEdit ? ['관리'] : [])].map(h => (
+              {[...t.headers.slice(0,8), ...(canEdit ? [t.headers[8]] : [])].map(h => (
                 <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {paged.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: '#6b8fae' }}>등록된 장비 없음</td></tr>
+              <tr><td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: '#6b8fae' }}>{t.noDevice}</td></tr>
             ) : paged.map((d, i) => {
               const isActive = d.active !== false; // DB active 기준
               const isSelected = selected.includes(d.imei);
@@ -164,6 +414,7 @@ export default function DevicesPage({ devices, onRefresh }) {
                   <td style={{ padding: '8px 10px', color: '#6b8fae' }}>{d.model || '-'}</td>
                   <td style={{ padding: '8px 10px', color: '#6b8fae' }}>{d.type || '-'}</td>
                   <td style={{ padding: '8px 10px', color: '#6b8fae' }}>{d.satellite || '-'}</td>
+                  <td style={{ padding: '8px 10px', color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}>{d.registeredByCompany || '-'}</td>
                   <td style={{ padding: '8px 10px', color: '#6b8fae', fontSize: '10px' }}>
                     {d.openDate ? `${String(d.openDate).slice(0, 4)}-${String(d.openDate).slice(4, 6)}-${String(d.openDate).slice(6, 8)}` : '-'}
                   </td>
@@ -174,28 +425,28 @@ export default function DevicesPage({ devices, onRefresh }) {
                     </span>
                   </td>
                   {canEdit && (
-                    <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
+                    <td style={{ padding: '6px 10px', minWidth: '160px' }} onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         {/* 수정 */}
                         <button onClick={() => { setSelected([d.imei]); setShowEdit(true); }}
                           style={{ padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(0,212,240,.4)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', fontSize: '9px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          수정
+                          {t.editBtn}
                         </button>
                         {/* 중지/활성 토글 */}
                         <button onClick={async () => {
                           try {
                             const res = await api.put(`/devices/${d.imei}/toggle`);
                             const newActive = res.data?.active;
-                            alert(newActive ? '✅ 활성화 되었습니다.' : '⏸ 중지 되었습니다.');
+                            alert(newActive ? t.activatedMsg : t.stoppedMsg);
                             onRefresh();
                           } catch (e) { alert(e.response?.data?.message || '변경 실패'); }
                         }}
                           style={{ padding: '3px 8px', borderRadius: '5px', border: `1px solid ${isActive ? 'rgba(245,158,11,.4)' : 'rgba(16,185,129,.4)'}`, background: isActive ? 'rgba(245,158,11,.1)' : 'rgba(16,185,129,.1)', color: isActive ? '#f59e0b' : '#10b981', fontSize: '9px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          {isActive ? '중지' : '활성'}
+                          {isActive ? t.stopBtn : t.activeBtn}
                         </button>
                         {/* 삭제 */}
                         <button onClick={async () => {
-                          if (!confirm(`${d.alias} 장비를 삭제하시겠습니까?`)) return;
+                          if (!confirm(t.deleteOneConfirm(d.alias))) return;
                           try {
                             await api.delete(`/devices/${d.imei}`);
                             setSelected(p => p.filter(i => i !== d.imei));
@@ -203,7 +454,7 @@ export default function DevicesPage({ devices, onRefresh }) {
                           } catch (e) { alert(e.response?.data?.message || '삭제 실패'); }
                         }}
                           style={{ padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.1)', color: '#ef4444', fontSize: '9px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          삭제
+                          {t.deleteBtn}
                         </button>
                       </div>
                     </td>
@@ -280,12 +531,14 @@ export default function DevicesPage({ devices, onRefresh }) {
    장비 등록 팝업
 ══════════════════════════════════════ */
 function RegisterPopup({ profiles, users, onClose, onSave }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const myRole = getRole();
   const isSuperAdmin = myRole === 'SUPER_ADMIN';
 
   const [form, setForm] = useState({
     alias: '', imei: '', model: 'TYTO2', type: 'SBD',
     satellite: 'IRIDIUM', profileName: '', assignedUserId: '', openDate: '',
+    registeredByCompany: '',
   });
   const [imeiMsg, setImeiMsg] = useState({ text: '', ok: false });
 
@@ -293,18 +546,19 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
   const lbl = { fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '5px', fontWeight: '600' };
 
   const checkImei = async () => {
-    if (form.imei.length !== 15) { setImeiMsg({ text: 'IMEI는 15자리여야 합니다.', ok: false }); return; }
+    if (form.imei.length !== 15) { setImeiMsg({ text: t.imei15, ok: false }); return; }
     try {
       const res = await api.get(`/devices/${form.imei}`);
-      if (res.data) setImeiMsg({ text: '이미 등록된 장비입니다.', ok: false });
+      if (res.data) setImeiMsg({ text: t.imeiDup, ok: false });
     } catch (e) {
-      if (e.response?.status === 404) setImeiMsg({ text: '등록 가능한 장비입니다.', ok: true });
-      else setImeiMsg({ text: '확인 중 오류가 발생했습니다.', ok: false });
+      if (e.response?.status === 404) setImeiMsg({ text: t.imeiOk, ok: true });
+      else setImeiMsg({ text: t.imeiErr, ok: false });
     }
   };
 
   const handleSave = async () => {
-    if (!form.alias || !form.imei || !form.model || !form.type) { alert('필수 항목을 입력해주세요.'); return; }
+    if (!form.alias || !form.imei || !form.model || !form.type) { alert(t.required); return; }
+    if (isSuperAdmin && !form.registeredByCompany) { alert('Company를 선택해주세요.'); return; }
     try {
       await api.post('/devices', form);
       onSave();
@@ -312,12 +566,11 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', padding: '28px', width: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0' }}>📡 장비 등록</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0' }}>{t.regTitle}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
         </div>
 
@@ -325,20 +578,20 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
 
           {/* 유닛 네임 */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={lbl}>유닛 네임 (ALIAS) *</label>
-            <input style={inp} value={form.alias} onChange={e => setForm(p => ({ ...p, alias: e.target.value }))} placeholder="장비 별칭" />
+            <label style={lbl}>{t.aliasLabel}</label>
+            <input style={inp} value={form.alias} onChange={e => setForm(p => ({ ...p, alias: e.target.value }))} placeholder={t.aliasPh} />
           </div>
 
           {/* IMEI */}
           <div>
-            <label style={lbl}>IMEI *</label>
+            <label style={lbl}>{t.imeiLabel}</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input style={{ ...inp, flex: 1 }} value={form.imei}
                 onChange={e => { setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '').slice(0, 15) })); setImeiMsg({ text: '', ok: false }); }}
-                placeholder="15자리 IMEI" maxLength={15} />
+                placeholder={t.imeiPh} maxLength={15} />
               <button onClick={checkImei}
                 style={{ padding: '0 14px', background: 'rgba(0,212,240,.12)', border: '1px solid #00d4f0', borderRadius: '8px', color: '#00d4f0', fontSize: '11px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                검색
+                {t.searchBtn}
               </button>
             </div>
             {imeiMsg.text && <p style={{ fontSize: '10px', color: imeiMsg.ok ? '#10b981' : '#ef4444', marginTop: '4px' }}>{imeiMsg.text}</p>}
@@ -355,7 +608,7 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
 
           {/* Model */}
           <div>
-            <label style={lbl}>장비 종류 (TYPE) *</label>
+            <label style={lbl}>{t.modelLabel}</label>
             <select style={inp} value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))}>
               <option value="TYTO2">TYTO2</option>
               <option value="TYTO5">TYTO5</option>
@@ -367,7 +620,7 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
 
           {/* Type */}
           <div>
-            <label style={lbl}>타입 *</label>
+            <label style={lbl}>{t.typeLabel}</label>
             <select style={inp} value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
               <option value="SBD">SBD</option>
               <option value="IMT">IMT</option>
@@ -376,29 +629,34 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
 
           {/* 프로파일 */}
           <div>
-            <label style={lbl}>프로파일</label>
+            <label style={lbl}>{t.profileLabel}</label>
             <select style={inp} value={form.profileName} onChange={e => setForm(p => ({ ...p, profileName: e.target.value }))}>
-              <option value="">— 선택 안 함 —</option>
+              <option value="">{t.profileNone}</option>
               {profiles.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </div>
 
           {/* 계정 할당 — SUPER_ADMIN만 표시 */}
           {isSuperAdmin && (
-            <div>
-              <label style={lbl}>계정 할당 *</label>
-              <select style={inp} value={form.assignedUserId} onChange={e => setForm(p => ({ ...p, assignedUserId: e.target.value }))}>
-                <option value="">— 계정 선택 —</option>
-                {users.filter(u => u.role === 'ADMIN' || u.role === 'REVIEWER').map(u => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.loginId})</option>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={lbl}>COMPANY 할당 * <span style={{ color: '#4b6483', fontSize: '9px' }}>해당 회사 ADMIN이 장비를 관리합니다</span></label>
+              <select style={inp} value={form.registeredByCompany || ''} onChange={e => setForm(p => ({ ...p, registeredByCompany: e.target.value, assignedUserId: '' }))}>
+                <option value="">— Company 선택 —</option>
+                {[...new Set(users.filter(u => u.role === 'ADMIN' && u.companyId).map(u => u.companyId))].map(company => (
+                  <option key={company} value={company}>{company}</option>
                 ))}
               </select>
+              {form.registeredByCompany && (
+                <div style={{ marginTop: '6px', padding: '6px 10px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '6px', fontSize: '10px', color: '#6b8fae' }}>
+                  👤 소속 ADMIN: {users.filter(u => u.companyId === form.registeredByCompany && u.role === 'ADMIN').map(u => `${u.name} (${u.loginId})`).join(', ') || '없음'}
+                </div>
+              )}
             </div>
           )}
 
           {/* 개통일자 */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={lbl}>개통일자 *</label>
+            <label style={lbl}>{t.openDateLabel}</label>
             <input style={{ ...inp, colorScheme: 'dark' }} type="date"
               value={form.openDate ? `${form.openDate.slice(0, 4)}-${form.openDate.slice(4, 6)}-${form.openDate.slice(6, 8)}` : ''}
               onChange={e => setForm(p => ({ ...p, openDate: e.target.value.replace(/-/g, '') }))} />
@@ -407,8 +665,8 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>취소</button>
-          <button onClick={handleSave} style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>등록</button>
+          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>{t.cancel}</button>
+          <button onClick={handleSave} style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>{t.regBtn}</button>
         </div>
       </div>
     </div>
@@ -419,6 +677,7 @@ function RegisterPopup({ profiles, users, onClose, onSave }) {
    장비 수정 팝업
 ══════════════════════════════════════ */
 function EditPopup({ device, profiles, onClose, onSave }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const [form, setForm] = useState({
     alias: device.alias || '',
     profileName: device.profileName || '',
@@ -442,13 +701,13 @@ function EditPopup({ device, profiles, onClose, onSave }) {
       <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', padding: '28px', width: '480px' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0' }}>✏️ 장비 수정</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0' }}>{t.editTitle}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
         </div>
 
         {/* 수정 불가 항목 표시 */}
         <div style={{ background: 'rgba(0,0,0,.3)', borderRadius: '10px', padding: '12px', marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-          {[['IMEI (수정불가)', device.imei], ['MODEL (수정불가)', device.model], ['TYPE (수정불가)', device.type]].map(([label, val]) => (
+          {[[t.imeiFixed, device.imei], [t.modelFixed, device.model], [t.typeFixed, device.type]].map(([label, val]) => (
             <div key={label}>
               <label style={{ ...lbl, color: '#4b6483' }}>{label}</label>
               <div style={fixedStyle}>{val}</div>
@@ -458,25 +717,25 @@ function EditPopup({ device, profiles, onClose, onSave }) {
 
         <div style={{ display: 'grid', gap: '14px' }}>
           <div>
-            <label style={lbl}>유닛 네임 (ALIAS)</label>
+            <label style={lbl}>{t.aliasLabel}</label>
             <input style={inp} value={form.alias} onChange={e => setForm(p => ({ ...p, alias: e.target.value }))} />
           </div>
           <div>
-            <label style={lbl}>프로파일</label>
+            <label style={lbl}>{t.profileLabel}</label>
             <select style={inp} value={form.profileName} onChange={e => setForm(p => ({ ...p, profileName: e.target.value }))}>
-              <option value="">— 선택 안 함 —</option>
+              <option value="">{t.profileNone}</option>
               {profiles.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>그룹</label>
-            <input style={inp} value={form.group} onChange={e => setForm(p => ({ ...p, group: e.target.value }))} placeholder="그룹명" />
+            <label style={lbl}>{t.groupLabel}</label>
+            <input style={inp} value={form.group} onChange={e => setForm(p => ({ ...p, group: e.target.value }))} placeholder={t.groupPh} />
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>취소</button>
-          <button onClick={handleSave} style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>저장</button>
+          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>{t.cancel}</button>
+          <button onClick={handleSave} style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}>{t.save}</button>
         </div>
       </div>
     </div>
@@ -487,6 +746,7 @@ function EditPopup({ device, profiles, onClose, onSave }) {
    프로파일 팝업
 ══════════════════════════════════════ */
 function ProfilePopup({ onClose }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const [profiles, setProfiles] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', sosEmail: '', sosKakao: '', trackEmail: '', channels: [] });
@@ -511,7 +771,7 @@ function ProfilePopup({ onClose }) {
   };
 
   const deleteProfile = async (id) => {
-    if (!confirm('삭제하시겠습니까?')) return;
+    if (!confirm(t.deleteConfirmSimple)) return;
     try { await api.delete(`/profiles/${id}`); fetchProfiles(); } catch { }
   };
 
@@ -533,29 +793,29 @@ function ProfilePopup({ onClose }) {
       <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', padding: '28px', width: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#8b5cf6' }}>📋 프로파일 & Messaging Hub</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#8b5cf6' }}>{t.profTitle}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
         </div>
 
         {/* 프로파일 등록 폼 */}
         {showForm ? (
           <div style={{ background: 'rgba(0,0,0,.2)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '700', marginBottom: '12px' }}>SOS / TRACK 알림 수신자</div>
+            <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '700', marginBottom: '12px' }}>{t.profSosLabel}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>프로파일 명</label>
-                <input style={inp} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="프로파일 이름" />
+                <label style={lbl}>{t.profNameLabel}</label>
+                <input style={inp} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder={t.profNamePh} />
               </div>
               <div>
-                <label style={lbl}>SOS 이메일</label>
+                <label style={lbl}>{t.sosEmailLabel}</label>
                 <input style={inp} type="email" value={form.sosEmail} onChange={e => setForm(p => ({ ...p, sosEmail: e.target.value }))} placeholder="sos@example.com" />
               </div>
               <div>
-                <label style={lbl}>SOS 카카오톡</label>
+                <label style={lbl}>{t.sosKakaoLabel}</label>
                 <input style={inp} value={form.sosKakao} onChange={e => setForm(p => ({ ...p, sosKakao: e.target.value }))} placeholder="카카오톡 ID" />
               </div>
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>TRACK 이메일 수신자</label>
+                <label style={lbl}>{t.trackEmailLabel}</label>
                 <input style={inp} type="email" value={form.trackEmail} onChange={e => setForm(p => ({ ...p, trackEmail: e.target.value }))} placeholder="track@example.com" />
               </div>
             </div>
@@ -566,7 +826,7 @@ function ProfilePopup({ onClose }) {
                 <span style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '700' }}>MESSAGING HUB</span>
                 <button onClick={() => setShowChannelForm(true)}
                   style={{ padding: '4px 12px', background: 'rgba(139,92,246,.15)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '6px', color: '#8b5cf6', fontSize: '10px', cursor: 'pointer' }}>
-                  + 채널 추가
+                  {t.addChannel}
                 </button>
               </div>
               <div style={{ fontSize: '9px', color: '#4b6483', marginBottom: '8px' }}>Minimum SkyLink firmware version needed for this feature: 2.33</div>
@@ -595,8 +855,8 @@ function ProfilePopup({ onClose }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button onClick={() => setShowChannelForm(false)} style={{ padding: '5px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', cursor: 'pointer', fontSize: '11px' }}>취소</button>
-                    <button onClick={addChannel} style={{ padding: '5px 14px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '6px', color: '#8b5cf6', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>저장</button>
+                    <button onClick={() => setShowChannelForm(false)} style={{ padding: '5px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', cursor: 'pointer', fontSize: '11px' }}>{t.channelCancel}</button>
+                    <button onClick={addChannel} style={{ padding: '5px 14px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '6px', color: '#8b5cf6', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>{t.channelSave}</button>
                   </div>
                 </div>
               )}
@@ -630,14 +890,14 @@ function ProfilePopup({ onClose }) {
             </div>
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '14px' }}>
-              <button onClick={() => setShowForm(false)} style={{ padding: '7px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: '7px', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>클리어</button>
-              <button onClick={saveProfile} style={{ padding: '7px 20px', background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', border: 'none', borderRadius: '7px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>알림 설정 저장</button>
+              <button onClick={() => setShowForm(false)} style={{ padding: '7px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: '7px', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>{t.clear}</button>
+              <button onClick={saveProfile} style={{ padding: '7px 20px', background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', border: 'none', borderRadius: '7px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>{t.saveSetting}</button>
             </div>
           </div>
         ) : (
           <button onClick={() => setShowForm(true)}
             style={{ padding: '7px 16px', background: 'rgba(139,92,246,.15)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '8px', color: '#8b5cf6', fontSize: '12px', fontWeight: '700', cursor: 'pointer', marginBottom: '16px' }}>
-            + 프로파일 생성
+            {t.createProfile}
           </button>
         )}
 
@@ -645,14 +905,14 @@ function ProfilePopup({ onClose }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: 'rgba(0,0,0,.4)' }}>
-              {['No', '프로파일명', 'SOS Email', 'TRACK Email', 'Actions'].map(h => (
+              {t.profHeaders.map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {paged.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#6b8fae' }}>저장된 프로파일이 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#6b8fae' }}>{t.noProfile}</td></tr>
             ) : paged.map((p, i) => (
               <tr key={p.id} style={{ borderBottom: '1px solid rgba(0,212,240,.05)' }}>
                 <td style={{ padding: '8px 12px', color: '#4b6483' }}>{(page - 1) * PER + i + 1}</td>
@@ -661,7 +921,7 @@ function ProfilePopup({ onClose }) {
                 <td style={{ padding: '8px 12px', color: '#6b8fae' }}>{p.trackEmail}</td>
                 <td style={{ padding: '8px 12px' }}>
                   <button onClick={() => deleteProfile(p.id)}
-                    style={{ padding: '3px 10px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>삭제</button>
+                    style={{ padding: '3px 10px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>{t.deleteBtn}</button>
                 </td>
               </tr>
             ))}
@@ -678,7 +938,7 @@ function ProfilePopup({ onClose }) {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>닫기</button>
+          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>{t.close}</button>
         </div>
       </div>
     </div>
@@ -689,6 +949,7 @@ function ProfilePopup({ onClose }) {
    장비 설정 패널
 ══════════════════════════════════════ */
 function DeviceSettingPanel({ device, onClose }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const [verData, setVerData] = useState(null); // DB에서 가져온 VER 원본
   const [original, setOriginal] = useState(null); // 원본 설정값
   const [settings, setSettings] = useState({
@@ -727,14 +988,8 @@ function DeviceSettingPanel({ device, onClose }) {
     };
   };
 
-  const gpsLabel = (v) => {
-    const map = { '0': '없음', '1': '약함', '2': '보통', '3': '최상' };
-    return map[v] || v;
-  };
-  const signalLabel = (v) => {
-    const map = { '0': '없음', '1': '매우약함', '2': '보통', '3': '정상', '4': '양호', '5': '최상' };
-    return map[v] || v;
-  };
+  const gpsLabel = (v) => t.gpsLabels[v] || v;
+  const signalLabel = (v) => t.signalLabels[v] || v;
 
   // 최신 VER 데이터 조회
   useEffect(() => {
@@ -803,7 +1058,7 @@ function DeviceSettingPanel({ device, onClose }) {
 
   const doSave = async () => {
     const cmd = buildCommand();
-    if (!cmd) { alert('변경된 항목이 없습니다.'); return; }
+    if (!cmd) { alert(t.noChange); return; }
     setSaving(true); setSaveStatus('saving');
     try {
       await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' });
@@ -817,12 +1072,12 @@ function DeviceSettingPanel({ device, onClose }) {
   };
 
   const handleSave = async () => {
-    if (retryCount >= MAX_RETRY) { alert('재전송 횟수(3회)를 초과했습니다. 저장이 비활성화됩니다.'); return; }
+    if (retryCount >= MAX_RETRY) { alert(t.maxRetryAlert); return; }
     await doSave();
   };
 
   const handleRetry = async () => {
-    if (retryCount >= MAX_RETRY) { alert('재전송 횟수(3회)를 초과했습니다.'); return; }
+    if (retryCount >= MAX_RETRY) { alert(t.maxRetryAlert2); return; }
     setRetryCount(p => p + 1);
     await doSave();
   };
@@ -873,7 +1128,7 @@ function DeviceSettingPanel({ device, onClose }) {
         <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(239,68,68,.05)' }}>
           <span style={{ fontSize: '11px', fontWeight: '700', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>Firmware</span>
           <span style={{ fontSize: '16px', fontWeight: '700', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
-            {verData ? verData.verNum : '— VER-Call 후 표시됩니다.'}
+            {verData ? verData.verNum : t.verCall}
           </span>
         </div>
 
@@ -901,35 +1156,35 @@ function DeviceSettingPanel({ device, onClose }) {
 
           {/* 주기 Time — 4자리 */}
           <div style={rowStyle}>
-            <span style={lblStyle}>주기 Time <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
+            <span style={lblStyle}>{t.cycleTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <select onChange={e => { if (e.target.value) set('timeInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
-                <option value="">-- 선택 --</option>
-                {['0001','0005','0010','0030','0060'].map(v => <option key={v} value={v}>{parseInt(v)}분</option>)}
+                <option value="">{t.selectOption}</option>
+              {['0001','0005','0010','0030','0060'].map(v => <option key={v} value={v}>{parseInt(v)}min</option>)}
               </select>
               <input style={{ ...inp, width: '80px' }} value={settings.timeInput} maxLength={4}
                 onChange={e => set('timeInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
             </div>
           </div>
 
-          {/* 주기 Distance — 4자리 */}
+          {/* 주기 Distance */}
           <div style={rowStyle}>
-            <span style={lblStyle}>주기 Distance <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:10m)</span></span>
+            <span style={lblStyle}>{t.cycleDist} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unit10m}</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <select onChange={e => { if (e.target.value) set('distInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
-                <option value="">-- 선택 --</option>
-                {['0010','0050','0100','0500','1000'].map(v => <option key={v} value={v}>{parseInt(v) * 10}m</option>)}
+                <option value="">{t.selectOption}</option>
+              {['0010','0050','0100','0500','1000'].map(v => <option key={v} value={v}>{parseInt(v) * 10}m</option>)}
               </select>
               <input style={{ ...inp, width: '80px' }} value={settings.distInput} maxLength={4}
                 onChange={e => set('distInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
             </div>
           </div>
 
-          {/* CAN 사용 여부 */}
+          {/* CAN */}
           <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', border: '1px solid rgba(16,185,129,.15)', borderRadius: '6px', margin: '4px 8px' }}>
-            <span style={lblStyle}>CAN 사용 여부</span>
+            <span style={lblStyle}>{t.canUse}</span>
             <button style={toggleStyle(settings.canUse && !settings.canGps)}
               onClick={() => {
                 if (settings.canGps) return; // CAN+GPS ON이면 잠금
@@ -943,18 +1198,18 @@ function DeviceSettingPanel({ device, onClose }) {
 
           {/* CAN 시간 설정 — CAN ON && CAN+GPS OFF 시 활성화 */}
           <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', opacity: settings.canUse && !settings.canGps ? 1 : 0.35 }}>
-            <span style={lblStyle}>CAN 시간 설정 <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
+            <span style={lblStyle}>{t.canTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input style={{ ...inp, width: '80px' }} value={settings.canTime} maxLength={4}
                 disabled={!settings.canUse || settings.canGps}
                 onChange={e => set('canTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
             </div>
           </div>
 
           {/* CAN+GPS 사용 여부 */}
           <div style={{ ...rowStyle, border: '1px solid rgba(107,143,174,.2)', borderRadius: '6px', margin: '4px 8px' }}>
-            <span style={lblStyle}>CAN+GPS 사용여부</span>
+            <span style={lblStyle}>{t.canGpsUse}</span>
             <button style={toggleStyle(settings.canGps, settings.canUse && !settings.canGps)}
               onClick={() => {
                 if (settings.canUse && !settings.canGps) return; // CAN ON이면 잠금
@@ -968,18 +1223,18 @@ function DeviceSettingPanel({ device, onClose }) {
 
           {/* CAN+GPS 시간 설정 — CAN+GPS ON 시 활성화 */}
           <div style={{ ...rowStyle, opacity: settings.canGps ? 1 : 0.35 }}>
-            <span style={lblStyle}>CAN+GPS 시간 설정 <span style={{ fontSize: '9px', color: '#4b6483' }}>(단위:분)</span></span>
+            <span style={lblStyle}>{t.canGpsTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input style={{ ...inp, width: '80px' }} value={settings.canGpsTime} maxLength={4}
                 disabled={!settings.canGps}
                 onChange={e => set('canGpsTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>4자리</span>
+              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
             </div>
           </div>
 
           {/* SOS 사용 여부 */}
           <div style={rowStyle}>
-            <span style={lblStyle}>SOS 사용 여부</span>
+            <span style={lblStyle}>{t.sosUse}</span>
             <button style={toggleStyle(settings.sosUse)} onClick={() => set('sosUse', !settings.sosUse)}>
               {settings.sosUse ? 'ON' : 'OFF'}
             </button>
@@ -987,17 +1242,17 @@ function DeviceSettingPanel({ device, onClose }) {
 
           {/* 수신처 */}
           <div style={rowStyle}>
-            <span style={lblStyle}>수신처 <span style={{ fontSize: '9px', color: '#4b6483' }}>(유닛코드/IMEI)</span></span>
+            <span style={lblStyle}>{t.recipient} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.recipientUnit}</span></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <input style={{ ...inp, width: '280px' }} value={settings.recipient}
                 onChange={e => set('recipient', e.target.value.replace(/\D/g, '').slice(0, 15))}
-                placeholder="10자리(유닛코드) 또는 15자리(IMEI)" />
+                placeholder={t.recipientPh} />
               {settings.recipient && settings.recipient.length !== 10 && settings.recipient.length !== 15 && (
-                <span style={{ fontSize: '9px', color: '#ef4444' }}>10자리 또는 15자리만 가능합니다.</span>
+                <span style={{ fontSize: '9px', color: '#ef4444' }}>{t.recipientErr}</span>
               )}
               {settings.recipient && (settings.recipient.length === 10 || settings.recipient.length === 15) && (
                 <span style={{ fontSize: '9px', color: '#10b981' }}>
-                  {settings.recipient.length === 15 ? '✓ IMEI (15자리)' : '✓ 유닛코드 (10자리)'}
+                  {settings.recipient.length === 15 ? t.recipientImei : t.recipientUnit2}
                 </span>
               )}
             </div>
@@ -1051,7 +1306,7 @@ function DeviceSettingPanel({ device, onClose }) {
         {/* 커맨드 미리보기 */}
         {isChanged() && buildCommand() && (
           <div style={{ margin: '0 14px 8px', padding: '8px 12px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '8px' }}>
-            <span style={{ fontSize: '9px', color: '#6b8fae' }}>전송 커맨드: </span>
+            <span style={{ fontSize: '9px', color: '#6b8fae' }}>{t.sendCmd}</span>
             <span style={{ fontSize: '10px', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>{buildCommand()}</span>
           </div>
         )}
@@ -1060,34 +1315,34 @@ function DeviceSettingPanel({ device, onClose }) {
         <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <button onClick={handleSave} disabled={!canSave}
             style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: canSave ? 'linear-gradient(135deg,#00d4f0,#0891b2)' : 'rgba(255,255,255,.07)', color: canSave ? '#0d1628' : 'rgba(255,255,255,.2)', fontWeight: '700', fontSize: '12px', cursor: canSave ? 'pointer' : 'not-allowed', transition: 'all .2s' }}>
-            💾 모든 설정 저장
+            {t.saveAll}
           </button>
-          <span style={{ fontSize: '10px', color: '#6b8fae' }}>※ ACK 수신시까지 최대 10분 대기</span>
+          <span style={{ fontSize: '10px', color: '#6b8fae' }}>{t.ackNote}</span>
 
           {saveStatus === 'waiting' && (
-            <span style={{ fontSize: '11px', color: '#f59e0b' }}>⏳ 대기 중... ({retryCount}/{MAX_RETRY}회)</span>
+            <span style={{ fontSize: '11px', color: '#f59e0b' }}>{t.waiting(retryCount, MAX_RETRY)}</span>
           )}
           {saveStatus === 'failed' && retryCount < MAX_RETRY && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#ef4444' }}>❌ 실패 ({retryCount}/{MAX_RETRY}회)</span>
+              <span style={{ fontSize: '11px', color: '#ef4444' }}>{t.failed(retryCount, MAX_RETRY)}</span>
               <button onClick={handleRetry}
                 style={{ padding: '5px 12px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
-                재전송
+                {t.retry}
               </button>
             </div>
           )}
           {saveStatus === 'failed' && retryCount >= MAX_RETRY && (
-            <span style={{ fontSize: '11px', color: '#ef4444' }}>❌ 재전송 {MAX_RETRY}회 초과 — 저장 비활성화</span>
+            <span style={{ fontSize: '11px', color: '#ef4444' }}>{t.maxRetry(MAX_RETRY)}</span>
           )}
           {saveStatus === 'success' && (
-            <span style={{ fontSize: '11px', color: '#10b981' }}>✅ 성공</span>
+            <span style={{ fontSize: '11px', color: '#10b981' }}>{t.success}</span>
           )}
         </div>
 
         {/* Device Call */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)' }}>
           <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '700', marginBottom: '8px' }}>
-            DEVICE CALL <span style={{ fontSize: '9px', color: '#6b8fae', fontWeight: '400' }}>※ 클릭 후 1분간 전체 비활성화</span>
+            {t.deviceCall} <span style={{ fontSize: '9px', color: '#6b8fae', fontWeight: '400' }}>{t.callNote}</span>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[
@@ -1117,6 +1372,7 @@ function DeviceSettingPanel({ device, onClose }) {
    GEO Fence 패널
 ══════════════════════════════════════ */
 function GeoFencePanel({ devices, selectedDevice, onClose }) {
+  const t = DEV_T[getLang()] || DEV_T.ko;
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const drawSourceRef = useRef(null);
@@ -1285,13 +1541,26 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
     return `G1,${mode},${intervalStr},${n},${coords}`;
   };
 
-  const handleSaveSlot = () => {
-    if (!activeGeo) { alert('GEO 슬롯을 선택해주세요.'); return; }
-    if (points.length < 3) { alert('최소 3개 좌표가 필요합니다.'); return; }
-    const newSlots = { ...savedSlots, [activeGeo]: { points: [...points], mode, interval, intervalT } };
-    setSavedSlots(newSlots);
-    localStorage.setItem(`${deviceKey}_slots`, JSON.stringify(newSlots));
-    alert(`${activeGeo}에 저장 완료!`);
+  const handleSaveSlot = async () => {
+    if (!activeGeo) { alert(t.geoSlotSelect); return; }
+    if (points.length < 3) { alert(t.geoMinPts); return; }
+
+    const cmd = buildCommand();
+    if (!cmd) { alert('커맨드 생성 실패'); return; }
+
+    try {
+      await api.post('/location/command/geo', {
+        imei: selectedDevice?.imei,
+        slotName: activeGeo,
+        command: cmd,
+      });
+      const newSlots = { ...savedSlots, [activeGeo]: { points: [...points], mode, interval, intervalT } };
+      setSavedSlots(newSlots);
+      localStorage.setItem(`${deviceKey}_slots`, JSON.stringify(newSlots));
+      alert(t.geoSaved(activeGeo));
+    } catch (_) {
+      alert(t.geoSaveFail);
+    }
   };
 
   const doSend = async () => {
@@ -1311,20 +1580,31 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
   };
 
   const handleSend = async () => {
-    if (sendLocked) { alert('전송 후 2분간 잠금됩니다.'); return; }
-    if (!activeGeo) { alert('GEO 슬롯을 선택해주세요.'); return; }
+    if (sendLocked) { alert(t.geoLockAlert); return; }
+    if (!activeGeo) { alert(t.geoSlotSelect); return; }
     setRetryCount(0);
     await doSend();
   };
 
   const handleRetry = async () => {
-    if (retryCount >= MAX_RETRY) { alert('재전송 3회 초과'); return; }
+    if (retryCount >= MAX_RETRY) { alert(t.geoMaxRetryAlert); return; }
     setRetryCount(p => p + 1);
     await doSend();
   };
 
-  const INTERVAL_OPTIONS = ['S001','S005','S010','S030'].map(v => ({ value: v, label: `${v} - ${parseInt(v.slice(1))}분` }));
-  const INTERVAL_T_OPTIONS = ['T001','T005','T010','T030'].map(v => ({ value: v, label: `${v} - ${parseInt(v.slice(1))}분` }));
+  const intervalLabel = (v) => {
+    const n = parseInt(v.slice(1));
+    if (n < 60) return `${n}${t.min}`;
+    if (n === 60) return `1${t.hour}`;
+    if (n === 120) return `2${t.hour}`;
+    if (n === 240) return `4${t.hour}`;
+    if (n === 480) return `8${t.hour}`;
+    if (n === 960) return `16${t.hour}`;
+    if (n === 1440) return `24${t.hour}`;
+    return `${n}${t.min}`;
+  };
+  const INTERVAL_OPTIONS = ['S001','S005','S010','S030','S060','S120','S240','S480','S960','S1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
+  const INTERVAL_T_OPTIONS = ['T001','T005','T010','T030','T060','T120','T240','T480','T960','T1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
 
   const slotBorder = (g) => {
     if (g === lastSentSlot) return '2px solid #fbbf24';
@@ -1345,36 +1625,52 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
         {/* 헤더 */}
         <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, flexWrap: 'wrap' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: geoOn ? '#10b981' : '#ef4444', display: 'inline-block', boxShadow: geoOn ? '0 0 6px #10b981' : '0 0 6px #ef4444' }} />
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', color: '#00d4f0' }}>GEO FENCE CONFIGURATION</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', color: '#00d4f0' }}>{t.geoTitle}</span>
 
           {/* G1 ON / G2 OFF */}
-          <button onClick={() => setGeoOn(true)} style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: geoOn ? '#10b981' : 'rgba(16,185,129,.15)', color: geoOn ? '#fff' : '#10b981', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>G1 ON</button>
-          <button onClick={() => setGeoOn(false)} style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: !geoOn ? '#ef4444' : 'rgba(239,68,68,.15)', color: !geoOn ? '#fff' : '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>G2 OFF</button>
+          <div style={{ position: 'relative', display: 'inline-block' }} className="geo-tooltip-wrap">
+            <button onClick={() => setGeoOn(true)} title={t.ttG1on}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: geoOn ? '#10b981' : 'rgba(16,185,129,.15)', color: geoOn ? '#fff' : '#10b981', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              G1 ON
+            </button>
+          </div>
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button onClick={() => setGeoOn(false)} title={t.ttG2off}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: !geoOn ? '#ef4444' : 'rgba(239,68,68,.15)', color: !geoOn ? '#fff' : '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              G2 OFF
+            </button>
+          </div>
 
           <span style={{ color: '#4b6483', fontSize: '10px' }}>MODE</span>
-          {['DEF1', 'DEF2', 'DEF3'].map(m => (
-            <button key={m} onClick={() => setMode(m)}
-              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: mode === m ? (m === 'DEF1' ? '#10b981' : m === 'DEF2' ? '#ef4444' : '#3b82f6') : 'rgba(255,255,255,.07)', color: mode === m ? '#fff' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
-              {m === 'DEF1' ? 'DEF1 IN' : m === 'DEF2' ? 'DEF2 OUT' : 'DEF3 BOTH'}
+          {[
+            { key: 'DEF1', label: 'DEF1 IN', tooltip: t.ttDef1, color: '#10b981' },
+            { key: 'DEF2', label: 'DEF2 OUT', tooltip: t.ttDef2, color: '#ef4444' },
+            { key: 'DEF3', label: 'DEF3 BOTH', tooltip: t.ttDef3, color: '#3b82f6' },
+          ].map(m => (
+            <button key={m.key} onClick={() => setMode(m.key)} title={m.tooltip}
+              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: mode === m.key ? m.color : 'rgba(255,255,255,.07)', color: mode === m.key ? '#fff' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
+              {m.label}
             </button>
           ))}
 
           <span style={{ color: '#4b6483', fontSize: '10px' }}>INTERVAL</span>
           {(mode === 'DEF1' || mode === 'DEF3') && (
             <select value={interval} onChange={e => setIntervalVal(e.target.value)}
-              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
+              title={t.ttIntervalS}
+              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none', cursor: 'pointer' }}>
               {INTERVAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
           {(mode === 'DEF2' || mode === 'DEF3') && (
             <select value={intervalT} onChange={e => setIntervalT(e.target.value)}
-              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none' }}>
+              title={t.ttIntervalT}
+              style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', outline: 'none', cursor: 'pointer' }}>
               {INTERVAL_T_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '10px', color: '#6b8fae' }}>Device: {selectedDevice?.alias || '—'}</span>
+            <span style={{ fontSize: '10px', color: '#6b8fae' }}>{t.geoDevice} {selectedDevice?.alias || '—'}</span>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
           </div>
         </div>
@@ -1382,7 +1678,7 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
         {/* 교차 오류 */}
         {intersectError && (
           <div style={{ padding: '6px 20px', background: 'rgba(239,68,68,.15)', borderBottom: '1px solid rgba(239,68,68,.3)', fontSize: '11px', color: '#ef4444', fontWeight: '700', flexShrink: 0 }}>
-            ⚠️ 선분이 교차됩니다. 다른 위치를 선택해주세요.
+            {t.geoIntersect}
           </div>
         )}
 
@@ -1395,7 +1691,7 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
               <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
                 DRAWING AREA {points.length} / {MAX_POINTS} pts
               </span>
-              <span style={{ fontSize: '9px', color: '#4b6483' }}>지도 클릭으로 꼭짓점 추가 (최소 3개, 최대 {MAX_POINTS}개)</span>
+              <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.geoDrawNote(MAX_POINTS)}</span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
                 <button onClick={() => setPoints(p => p.slice(0, -1))}
                   style={{ padding: '3px 10px', background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '5px', color: '#f59e0b', fontSize: '10px', cursor: 'pointer' }}>↩ Undo</button>
@@ -1411,9 +1707,9 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
 
             {/* 좌표 목록 */}
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
-              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>COORDINATE LIST</div>
+              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>{t.geoCoordList}</div>
               {points.length === 0 ? (
-                <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '10px' }}>지도를 클릭하여 꼭짓점을 추가하세요</div>
+                <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '10px' }}>{t.geoClickNote}</div>
               ) : points.map((p, i) => (
                 <div key={i} style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", padding: '3px 0', borderBottom: '1px solid rgba(0,212,240,.05)', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#00d4f0' }}>{i + 1}.</span>
@@ -1424,7 +1720,7 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
 
             {/* GEO 슬롯 */}
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
-              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>GEO-SETTING 슬롯 (1-5)</div>
+              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>{t.geoSlot}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 {['GEO-1','GEO-2','GEO-3','GEO-4','GEO-5'].map(g => (
                   <button key={g} onClick={() => {
@@ -1438,33 +1734,36 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
               </div>
               {lastSentSlot && (
                 <div style={{ fontSize: '9px', color: '#fbbf24', padding: '4px 8px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '5px' }}>
-                  📡 마지막 전송: {lastSentSlot}
+                  {t.geoLastSent} {lastSentSlot}
                 </div>
               )}
               {activeGeo && savedSlots[activeGeo] && (
                 <div style={{ marginTop: '6px', fontSize: '9px', color: '#10b981', padding: '4px 8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '5px' }}>
-                  ✓ 저장된 슬롯: {savedSlots[activeGeo].points.length}개 꼭짓점 / {savedSlots[activeGeo].mode}
+                  {t.geoSavedSlot(savedSlots[activeGeo].points.length, savedSlots[activeGeo].mode)}
                 </div>
               )}
             </div>
 
             {/* Command Preview */}
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
-              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>COMMAND PREVIEW</div>
+              <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>{t.geoCmdPreview}</div>
               <div style={{ background: 'rgba(0,0,0,.4)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '6px', padding: '10px', fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: '60px', wordBreak: 'break-all' }}>
-                {buildCommand() || '— 포트 3개 이상 추가 후 생성됩니다 —'}
+                {buildCommand() || t.geoCmdNote}
               </div>
             </div>
 
             {/* 안내 문구 */}
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)', fontSize: '10px', color: '#6b8fae', lineHeight: 1.8 }}>
-              <div style={{ fontWeight: '700', color: '#00d4f0', marginBottom: '6px', fontSize: '11px' }}>📌 사용 안내</div>
-              <div>• 슬롯(GEO-1~5)을 클릭하여 선택하세요.</div>
-              <div>• 지도에서 꼭짓점을 추가 후 <span style={{ color: '#00d4f0', fontWeight: '700' }}>저장</span>하면 슬롯이 <span style={{ color: '#ef4444', fontWeight: '700' }}>빨간색</span>으로 변합니다.</div>
-              <div>• 새 슬롯을 선택해 추가 저장할 수 있습니다. (총 5개)</div>
-              <div>• <span style={{ color: '#00d4f0', fontWeight: '700' }}>전송</span>이 완료된 슬롯은 <span style={{ color: '#fbbf24', fontWeight: '700' }}>노란색</span>으로 변합니다.</div>
-              <div style={{ marginTop: '8px', padding: '6px 8px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.1)', borderRadius: '6px', fontSize: '9px', color: '#4b6483' }}>
-                ※ 전송 후 2분간 잠금 / 실패 시 최대 3회 자동 재시도
+              <div style={{ fontWeight: '700', color: '#00d4f0', marginBottom: '6px', fontSize: '11px' }}>{t.geoGuideTitle}</div>
+              <div>{t.geoGuide1}</div>
+              <div>{t.geoGuide2[0]}<span style={{ color: '#00d4f0', fontWeight: '700' }}>{t.geoGuide2[1]}</span>{t.geoGuide2[2]}<span style={{ color: '#ef4444', fontWeight: '700' }}>{t.geoGuide2[3]}</span>{t.geoGuide2[4]}</div>
+              <div>{t.geoGuide3}</div>
+              <div>{t.geoGuide4[0]}<span style={{ color: '#00d4f0', fontWeight: '700' }}>{t.geoGuide4[1]}</span>{t.geoGuide4[2]}<span style={{ color: '#fbbf24', fontWeight: '700' }}>{t.geoGuide4[3]}</span>{t.geoGuide4[4]}</div>
+              <div style={{ marginTop: '6px', fontSize: '9px', color: '#4b6483', lineHeight: 1.8 }}>
+                {t.geoGuide5}
+              </div>
+              <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '6px', fontSize: '9px', color: '#fbbf24', lineHeight: 1.8 }}>
+                {t.geoGuide6}
               </div>
             </div>
 
@@ -1472,27 +1771,27 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
               {sendStatus === 'waiting' && (
                 <div style={{ padding: '8px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '6px', fontSize: '10px', color: '#f59e0b' }}>
-                  ⏳ 대기 중... ({retryCount}/{MAX_RETRY}회)
+                  {t.geoWaiting(retryCount, MAX_RETRY)}
                 </div>
               )}
               {sendStatus === 'failed' && retryCount < MAX_RETRY && (
                 <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>❌ 실패 ({retryCount}/{MAX_RETRY}회)</span>
-                  <button onClick={handleRetry} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>재전송</button>
+                  <span>{t.geoFailed(retryCount, MAX_RETRY)}</span>
+                  <button onClick={handleRetry} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>{t.geoRetry}</button>
                 </div>
               )}
               {sendStatus === 'failed' && retryCount >= MAX_RETRY && (
                 <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444' }}>
-                  ❌ 재전송 {MAX_RETRY}회 초과 — 잠금
+                  {t.geoMaxRetry(MAX_RETRY)}
                 </div>
               )}
               {sendStatus === 'success' && (
                 <div style={{ padding: '8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '6px', fontSize: '10px', color: '#10b981' }}>
-                  ✅ 전송 성공
+                  {t.geoSuccess}
                 </div>
               )}
               {sendLocked && sendStatus !== 'waiting' && (
-                <div style={{ marginTop: '6px', fontSize: '9px', color: '#6b8fae' }}>🔒 2분간 잠금 중...</div>
+                <div style={{ marginTop: '6px', fontSize: '9px', color: '#6b8fae' }}>{t.geoLocked}</div>
               )}
             </div>
 
@@ -1500,11 +1799,11 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
             <div style={{ padding: '14px', display: 'flex', gap: '8px', marginTop: 'auto' }}>
               <button onClick={handleSaveSlot}
                 style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(0,212,240,.3)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
-                💾 저장
+                {t.geoSaveBtn}
               </button>
               <button onClick={handleSend} disabled={sendLocked || retryCount >= MAX_RETRY}
                 style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.07)' : 'linear-gradient(135deg,#10b981,#059669)', color: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.2)' : '#fff', fontWeight: '700', fontSize: '12px', cursor: sendLocked || retryCount >= MAX_RETRY ? 'not-allowed' : 'pointer' }}>
-                ▶ 전송
+                {t.geoSendBtn}
               </button>
             </div>
           </div>

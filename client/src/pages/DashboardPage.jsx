@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosConfig';
+import { formatDateWithGmt, getGmtLabel, toSearchDate, getGmtZone } from '../utils/dateUtils';
 import MapView from '../components/MapView';
 import TextViewLocation from './TextViewLocation';
 import UsersPage from './UsersPage';
@@ -76,14 +77,34 @@ export default function DashboardPage({ user, onLogout }) {
   const [unreadMsg, setUnreadMsg] = useState(0);
   const [todayLocCount, setTodayLocCount] = useState(0);
 
+  const lang = localStorage.getItem('lang') || 'ko';
+
+  const MENU_LABELS = {
+    ko: {
+      dash: 'Map View', chat: 'Chat Room',
+      tvloc: 'Text View (위치)', tvdata: 'Text View (데이터)',
+      devices: '장비 설정', share: '공유 설정', users: '사용자',
+    },
+    en: {
+      dash: 'Map View', chat: 'Chat Room',
+      tvloc: 'Text View (Location)', tvdata: 'Text View (Data)',
+      devices: 'Device Settings', share: 'Share Settings', users: 'Users',
+    },
+    ja: {
+      dash: 'マップビュー', chat: 'チャットルーム',
+      tvloc: 'テキストビュー（位置）', tvdata: 'テキストビュー（データ）',
+      devices: 'デバイス設定', share: '共有設定', users: 'ユーザー',
+    },
+  };
+  const ml = MENU_LABELS[lang] || MENU_LABELS.ko;
   const menuItems = [
-    { id: 'dash', icon: '📡', label: 'Map View', badge: todayLocCount },
-    { id: 'chat', icon: '💬', label: 'Chat Room', badge: unreadMsg },
-    { id: 'tvloc', icon: '📍', label: 'Text View (Location)' },
-    { id: 'tvdata', icon: '📊', label: 'Text View (Data)' },
-    { id: 'devices', icon: '⚙️', label: 'Device Settings' },
-    { id: 'share', icon: '🔗', label: 'Share Settings' },
-    { id: 'users', icon: '👤', label: 'Users' },
+    { id: 'dash', icon: '📡', label: ml.dash, badge: todayLocCount },
+    { id: 'chat', icon: '💬', label: ml.chat, badge: unreadMsg },
+    { id: 'tvloc', icon: '📍', label: ml.tvloc },
+    { id: 'tvdata', icon: '📊', label: ml.tvdata },
+    { id: 'devices', icon: '⚙️', label: ml.devices },
+    { id: 'share', icon: '🔗', label: ml.share },
+    { id: 'users', icon: '👤', label: ml.users },
   ];
   // 오늘 위치정보 배지
   useEffect(() => {
@@ -126,8 +147,7 @@ export default function DashboardPage({ user, onLogout }) {
     return () => clearInterval(timer);
   }, []);
 
-  // 언어 감지 (localStorage에서)
-  const lang = localStorage.getItem('lang') || 'ko';
+  
 
   const BADGE_LABELS = {
     ko: { devices: '사용 장비', users: '사용자', active: '작동중', sos: 'SOS', logout: '로그아웃' },
@@ -150,7 +170,7 @@ export default function DashboardPage({ user, onLogout }) {
         {/* 햄버거 버튼 (모바일) */}
         <button onClick={() => {
           // 모바일: sidebarOpen, PC: sidebarCollapsed
-          if (window.innerWidth <= 768) setSidebarOpen(p => !p);
+          if (window.innerWidth <= 412) setSidebarOpen(p => !p);
           else setSidebarCollapsed(p => !p);
         }}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '9px', cursor: 'pointer', flexShrink: 0 }}>
@@ -187,15 +207,21 @@ export default function DashboardPage({ user, onLogout }) {
           </div>
         )}
 
-        {/* AUTO 토글 */}
-        <div onClick={() => setAutoRefresh(p => !p)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: autoRefresh ? 'rgba(0,212,240,.1)' : 'rgba(255,255,255,.04)', border: `1px solid ${autoRefresh ? 'rgba(0,212,240,.3)' : 'rgba(255,255,255,.1)'}`, borderRadius: '8px', padding: '4px 10px', fontSize: '10px', color: autoRefresh ? '#00d4f0' : '#6b8fae', flexShrink: 0 }}>
-          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: autoRefresh ? '#00d4f0' : '#6b8fae' }} />
-          <span className="pc-only">AUTO </span>{autoRefresh ? 'ON' : 'OFF'}
+        {/* 로그인 사용자 정보 */}
+        <div onClick={() => setActivePage('users')} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.25)', borderRadius: '8px', padding: '4px 10px', fontSize: '10px', flexShrink: 0 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.18)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,212,240,.08)'}>
+          <span style={{ color: '#00d4f0', fontWeight: '700' }}>{user.loginId}</span>
+          <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: '700',
+            background: user.role === 'SUPER_ADMIN' ? 'rgba(239,68,68,.2)' : user.role === 'ADMIN' ? 'rgba(245,158,11,.2)' : 'rgba(59,130,246,.2)',
+            color: user.role === 'SUPER_ADMIN' ? '#ef4444' : user.role === 'ADMIN' ? '#f59e0b' : '#60a5fa'
+          }}>{user.role}</span>
         </div>
 
         {/* 사용자 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '8px', padding: '4px 12px', flexShrink: 0 }}>
           <span style={{ fontSize: '11px', color: 'rgba(232,244,255,.7)' }} className="pc-only">{user.name}</span>
+          <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }} className="pc-only">{getGmtLabel()}</span>
           <button onClick={onLogout} style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: '700', color: '#ef4444', cursor: 'pointer' }}>
             {bl.logout}
           </button>
@@ -262,16 +288,16 @@ export default function DashboardPage({ user, onLogout }) {
         <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, position: 'relative' }}>
           {activePage === 'dash' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'min(330px, 36%) 1fr', gridTemplateRows: '1fr 160px', gap: '8px', padding: '8px', flex: 1, overflow: 'hidden' }}
-              className="dash-grid">
+              className="dash-grid" id="dash-grid-wrap">
               <DevicePanel devices={devicesWithLocation} allDevices={allDevices} onRefresh={() => { fetchDevices(); fetchLocations(); }} onNavigate={setActivePage} onMapDataChange={setMapPoints} />
 
               {/* 지도 */}
-              <div style={{ background: 'rgba(13,26,46,.85)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden' }}>
-                <MapView devices={devicesWithLocation} mapPoints={mapPoints} onOpenTrack={setTrackDevice} />
+              <div className="dash-map" style={{ background: 'rgba(13,26,46,.85)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden' }}>
+                <MapView devices={devicesWithLocation} allDevices={allDevices} mapPoints={mapPoints} onOpenTrack={setTrackDevice} />
               </div>
 
               {/* 이벤트 로그 */}
-              <div style={{ background: 'rgba(14,26,46,.97)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div className="dash-event" style={{ background: 'rgba(14,26,46,.97)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ padding: '7px 13px', borderBottom: '1px solid rgba(0,212,240,.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>EVENT LOG</span>
                   <span style={{ fontSize: '10px', color: '#6b8fae' }}>{locations.length}건</span>
@@ -308,7 +334,7 @@ export default function DashboardPage({ user, onLogout }) {
                           {detail}
                         </span>
                         <span style={{ fontSize: '9px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right' }}>
-                          {l.regDate?.slice(8, 10)}:{l.regDate?.slice(10, 12)}
+                          {formatDateWithGmt(l.regDate)?.slice(11)}
                         </span>
                       </div>
                     );
@@ -325,6 +351,7 @@ export default function DashboardPage({ user, onLogout }) {
               imei={trackDevice.imei}
               alias={trackDevice.alias}
               defaultPeriod="30일"
+              devices={devicesWithLocation}
               onClose={() => setTrackDevice(null)}
             />
           )}
@@ -362,15 +389,18 @@ export default function DashboardPage({ user, onLogout }) {
         .sidebar { position: relative; transform: none; }
         .sidebar-collapsed { width: 0 !important; overflow: hidden !important; border: none !important; }
 
-        /* 모바일 (768px 이하) */
-        @media (max-width: 768px) {
+        /* 모바일 (412px 이하) */
+        @media (max-width: 412px) {
           .mob-only { display: flex !important; }
           .pc-only { display: none !important; }
+
+          /* 사이드바 슬라이드 */
           .sidebar {
             position: fixed !important;
             top: 58px !important;
             left: 0 !important;
             bottom: 0 !important;
+            width: 240px !important;
             transform: translateX(-100%) !important;
             z-index: 160 !important;
             box-shadow: 4px 0 24px rgba(0,0,0,.5) !important;
@@ -378,14 +408,51 @@ export default function DashboardPage({ user, onLogout }) {
           .sidebar.sidebar-open {
             transform: translateX(0) !important;
           }
+
+          /* main 영역 세로 스크롤 허용 */
+          main {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+
+          /* 대시보드 그리드 — 세로 3단 */
           .dash-grid {
             grid-template-columns: 1fr !important;
-            grid-template-rows: 300px 1fr 120px !important;
+            grid-template-rows: 280px 380px 200px !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            gap: 6px !important;
+            padding: 6px !important;
+          }
+
+          /* RECEIVED DATA LIST — 스크롤 박스 */
+          .dash-grid > *:nth-child(1) {
+            height: 280px !important;
+            min-height: 280px !important;
+            max-height: 280px !important;
+            overflow-y: auto !important;
+            grid-row: auto !important;
+          }
+
+          /* 지도 */
+          .dash-map {
+            height: 380px !important;
+            min-height: 380px !important;
+            max-height: 380px !important;
+          }
+
+          /* 이벤트 로그 — 스크롤 박스 */
+          .dash-event {
+            height: 200px !important;
+            min-height: 200px !important;
+            max-height: 200px !important;
+            overflow-y: auto !important;
           }
         }
 
-        /* 태블릿 (769px ~ 1024px) */
-        @media (min-width: 769px) and (max-width: 1024px) {
+        /* 태블릿 (413px ~ 1024px) */
+        @media (min-width: 413px) and (max-width: 1024px) {
           .dash-grid {
             grid-template-columns: 260px 1fr !important;
           }
@@ -410,11 +477,21 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
 
   // 기본 날짜: 현재 기준 3일 전 ~ 현재
   const getDefault = () => {
+    const gmtZone = parseFloat(localStorage.getItem('gmtZone') ?? '9');
     const now = new Date();
-    const before3 = new Date(now);
-    before3.setDate(before3.getDate() - 3);
-    const fmt = d => d.toISOString().slice(0, 16);
-    return { start: fmt(before3), end: fmt(now) };
+    const offsetMs = gmtZone * 3600 * 1000;
+    const localNow = new Date(now.getTime() + offsetMs);
+    const before3 = new Date(localNow.getTime());
+    before3.setDate(before3.getDate() - 7);
+    const fmt = d => {
+      const y = d.getUTCFullYear();
+      const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const h = String(d.getUTCHours()).padStart(2, '0');
+      const m = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${y}-${mo}-${day}T${h}:${m}`;
+    };
+    return { start: fmt(before3), end: fmt(localNow) };
   };
   const def = getDefault();
   const [startDate, setStartDate] = useState(def.start);
@@ -454,23 +531,32 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
       const res = await api.get(`/location/range?start=${start}&end=${end}`);
       // 내 장비 IMEI만 필터링
       const myImeis = devices.map(d => d.imei);
-      const data = (Array.isArray(res.data) ? res.data : [])
-        .filter(d => myImeis.includes(d.imei));
+      const allRaw = (Array.isArray(res.data) ? res.data : [])
+        .sort((a, b) => (b.regDate || b.reg_date || '').localeCompare(a.regDate || a.reg_date || ''));
+      // devices가 비어있으면 전체 표시, 아니면 내 장비만 필터링
+      const data = myImeis.length > 0 ? allRaw.filter(d => myImeis.includes(d.imei)) : allRaw;
       setAllData(data);
       updateMapPoints(data, activeTab);
     } catch { setAllData([]); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchAllData(); }, []);
+  useEffect(() => { 
+    if (devices.length > 0) fetchAllData(); 
+  }, [devices.length]);
 
   const getLatestPerDeviceAndType = (data) => {
+    const getDate = (d) => d.regDate || d.reg_date || '';
+    const sorted = [...data].sort((a, b) => getDate(b).localeCompare(getDate(a)));
     const map = new Map();
-    data.forEach(d => {
+    sorted.forEach(d => {
       const key = `${d.imei}_${d.eventcode}`;
       if (!map.has(key)) map.set(key, d);
     });
-    return Array.from(map.values());
+    const result = Array.from(map.values());
+    const msg = result.find(d => d.eventcode === '5');
+    if (msg) console.log('MSG_regDate=' + msg.regDate + ' title=' + msg.title);
+    return result;
   };
 
   const baseFiltered = allData.filter(d => {
@@ -483,7 +569,7 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
           activeTab === 'track' ? d.eventcode === '1' :
             activeTab === 'can' ? d.eventcode === '7' :
               activeTab === 'event' ? d.eventcode === '9' :
-                activeTab === 'msg' ? d.eventcode === '3' : true;
+                activeTab === 'msg' ? d.eventcode === '5  ' : true;
     return matchSearch && matchTab;
   });
 
@@ -516,6 +602,8 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
   const handleCardClick = (item) => {
     if (item.eventcode === '4' || item.eventcode === '1') {
       setSelectedDevice(item);
+    } else if (item.eventcode === '5') {
+      onNavigate && onNavigate('chat');
     } else if (item.eventcode === '7') {
       onNavigate && onNavigate('tvdata');
     } else if (item.eventcode === '9') {
@@ -569,11 +657,11 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
         <div style={{ padding: '5px 13px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', gap: '4px', alignItems: 'center' }}>
 
           {[
-            { label: '1시간', hours: 1 },
-            { label: '24시', hours: 24 },
-            { label: '3일', days: 3 },
-            { label: '7일', days: 7 },
-            { label: '30일', days: 30 },
+            { ko: '1시간', en: '1hr', ja: '1時間', hours: 1 },
+            { ko: '24시', en: '24hr', ja: '24時', hours: 24 },
+            { ko: '3일', en: '3d', ja: '3日', days: 3 },
+            { ko: '7일', en: '7d', ja: '7日', days: 7 },
+            { ko: '30일', en: '30d', ja: '30日', days: 30 },
           ].map((q, i) => (
             <button key={i} onClick={async () => {
               const now = new Date();
@@ -593,7 +681,8 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
                 const res = await api.get(`/location/range?start=${startStr}&end=${endStr}`);
                 const myImeis = devices.map(d => d.imei);
                 const data = (Array.isArray(res.data) ? res.data : [])
-                  .filter(d => myImeis.includes(d.imei));
+                  .filter(d => myImeis.includes(d.imei))
+                  .sort((a, b) => (b.regDate || '').localeCompare(a.regDate || ''));
                 setAllData(data);
                 setPage(1);
                 updateMapPoints(data, activeTab);
@@ -603,7 +692,7 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
               style={{ padding: '3px 7px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,212,240,.08)'}>
-              {q.label}
+              {q[lang] || q.ko}
             </button>
           ))}
         </div>
@@ -634,7 +723,8 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
           ) : paged.map((d, i) => {
             const type = getTypeInfo(d.eventcode);
             const isSOS = d.eventcode === '4';
-            const isClickable = d.eventcode === '4' || d.eventcode === '1';
+            const isMsg = d.eventcode === '5';
+            const isClickable = d.eventcode === '4' || d.eventcode === '1' || d.eventcode === '5';
             const parts = d.position?.split(',') || [];
             const lat = parts[0];
             const lon = parts[1];
@@ -660,7 +750,11 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
                 {/* 2줄: IMEI + 위경도/페이로드 + 날짜시간 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}>
                   <span style={{ color: '#4b6483', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px', fontSize: '11px' }}>{d.imei}</span>
-                  {isShort ? (
+                  {isMsg ? (
+                    <span style={{ color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      💬 {(d.memo || d.title || '')?.slice(0, 10)}
+                    </span>
+                  ) : isShort ? (
                     <span style={{ color: '#a78bfa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                       {(d.memo || d.can || d.title || '')?.slice(0, 12)}
                     </span>
@@ -672,7 +766,7 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
                     ) : <span style={{ flex: 1 }} />
                   )}
                   <span style={{ color: '#4b6483', flexShrink: 0 }}>
-                    {d.regDate?.slice(0, 4)}-{d.regDate?.slice(4, 6)}-{d.regDate?.slice(6, 8)} {d.regDate?.slice(8, 10)}:{d.regDate?.slice(10, 12)}
+                    {formatDateWithGmt(d.regDate)}
                   </span>
                 </div>
               </div>
@@ -703,6 +797,7 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
           device={selectedDevice}
           imei={selectedDevice.imei}
           alias={getAlias(selectedDevice.imei)}
+          devices={devices}
           onClose={() => setSelectedDevice(null)}
         />
       )}

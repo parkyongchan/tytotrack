@@ -2,6 +2,70 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axiosConfig';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
+const getLang = () => localStorage.getItem('lang') || 'ko';
+
+const CHAT_T = {
+  ko: {
+    title: 'CHAT ROOM', subtitle: 'Satellite MSG', activeChannels: 'active channels',
+    realtime: '실시간', search: '🔍 전문검색', compose: '✉️ 메시지 작성',
+    searchPlaceholder: '메시지 내용 검색...', searchBtn: '검색',
+    noMsg: '수신된 메시지가 없습니다', noMsgSub: '위성 장비에서 MSG 수신 시 자동으로 대화방이 생성됩니다.',
+    totalMsg: '총', msgCount: '개 메시지', openChat: '대화 열기 →',
+    noMsgInRoom: '메시지 없음', back: '← 목록', msgCountLabel: '개 메시지',
+    draftAlert: '📝 임시저장된 내용이 있습니다.', loadDraft: '불러오기',
+    inputPlaceholder: '메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)',
+    titlePlaceholder: '타이틀 (선택, 최대 20bytes)',
+    sending: '⏳', send: '➤', failed: '✕ 실패', sent: '✓✓ 전송됨', waiting: '⏳ 대기중',
+    retry: '재전송', deleteBtn: '🗑', noMsgRoom: '메시지가 없습니다.',
+    composeTitle: '✉️ 메시지 작성', composeSub: '웹 → 위성 장비',
+    deviceLabel: '수신 장비 *', deviceSelect: '— 장비 선택 —',
+    titleLabel: '타이틀', titleLabelSub: '(선택, 최대 20bytes)',
+    msgLabel: '메시지 *', msgPlaceholder: '전송할 메시지를 입력하세요...',
+    success: '✅ 전송 완료! 위성 장비로 전송 대기 중입니다.',
+    fail: '❌ 전송 실패', resend: '재전송', cancel: '닫기', sendBtn: '▶ 전송', sendingBtn: '⏳ 전송중...',
+    deleteBtn: '🗑 삭제', deleteConfirm: '삭제하시겠습니까?',
+  },
+  en: {
+    title: 'CHAT ROOM', subtitle: 'Satellite MSG', activeChannels: 'active channels',
+    realtime: 'Live', search: '🔍 Search', compose: '✉️ New Message',
+    searchPlaceholder: 'Search messages...', searchBtn: 'Search',
+    noMsg: 'No messages received', noMsgSub: 'Chat rooms are created automatically when MSG is received from satellite devices.',
+    totalMsg: 'Total', msgCount: ' messages', openChat: 'Open Chat →',
+    noMsgInRoom: 'No messages', back: '← Back', msgCountLabel: ' messages',
+    draftAlert: '📝 Draft saved.', loadDraft: 'Load',
+    inputPlaceholder: 'Type message... (Enter to send, Shift+Enter for newline)',
+    titlePlaceholder: 'Title (optional, max 20bytes)',
+    sending: '⏳', send: '➤', failed: '✕ Failed', sent: '✓✓ Sent', waiting: '⏳ Waiting',
+    retry: 'Retry', deleteBtn: '🗑', noMsgRoom: 'No messages.',
+    composeTitle: '✉️ New Message', composeSub: 'Web → Satellite Device',
+    deviceLabel: 'Recipient Device *', deviceSelect: '— Select Device —',
+    titleLabel: 'Title', titleLabelSub: '(optional, max 20bytes)',
+    msgLabel: 'Message *', msgPlaceholder: 'Enter message to send...',
+    success: '✅ Sent! Waiting for satellite transmission.',
+    fail: '❌ Send Failed', resend: 'Retry', cancel: 'Close', sendBtn: '▶ Send', sendingBtn: '⏳ Sending...',
+    deleteBtn: '🗑 Delete', deleteConfirm: 'Delete this message?',
+  },
+  ja: {
+    title: 'チャットルーム', subtitle: '衛星MSG', activeChannels: 'アクティブチャンネル',
+    realtime: 'リアルタイム', search: '🔍 全文検索', compose: '✉️ メッセージ作成',
+    searchPlaceholder: 'メッセージ検索...', searchBtn: '検索',
+    noMsg: 'メッセージがありません', noMsgSub: '衛星デバイスからMSGを受信するとチャットルームが自動作成されます。',
+    totalMsg: '合計', msgCount: 'メッセージ', openChat: 'チャットを開く →',
+    noMsgInRoom: 'メッセージなし', back: '← 一覧', msgCountLabel: 'メッセージ',
+    draftAlert: '📝 下書きがあります。', loadDraft: '読込',
+    inputPlaceholder: 'メッセージを入力... (Enter送信、Shift+Enter改行)',
+    titlePlaceholder: 'タイトル (任意、最大20bytes)',
+    sending: '⏳', send: '➤', failed: '✕ 失敗', sent: '✓✓ 送信済', waiting: '⏳ 待機中',
+    retry: '再送信', deleteBtn: '🗑', noMsgRoom: 'メッセージがありません。',
+    composeTitle: '✉️ メッセージ作成', composeSub: 'Web → 衛星デバイス',
+    deviceLabel: '受信デバイス *', deviceSelect: '— デバイスを選択 —',
+    titleLabel: 'タイトル', titleLabelSub: '(任意、最大20bytes)',
+    msgLabel: 'メッセージ *', msgPlaceholder: '送信するメッセージを入力...',
+    success: '✅ 送信完了！衛星デバイスへの送信待機中です。',
+    fail: '❌ 送信失敗', resend: '再送信', cancel: '閉じる', sendBtn: '▶ 送信', sendingBtn: '⏳ 送信中...',
+    deleteBtn: '🗑 削除', deleteConfirm: 'このメッセージを削除しますか？',
+  },
+};
 
 // 한글 3바이트, 영문 1바이트 계산
 const getByteLength = (str) => {
@@ -15,6 +79,7 @@ const getByteLength = (str) => {
 };
 
 export default function ChatRoom({ user, devices = [] }) {
+  const t = CHAT_T[getLang()] || CHAT_T.ko;
   const [view, setView] = useState('grid');
   const [selectedImei, setSelectedImei] = useState(null);
   const [selectedAlias, setSelectedAlias] = useState('');
@@ -115,20 +180,20 @@ export default function ChatRoom({ user, devices = [] }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>💬</div>
           <div>
-            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#fff', letterSpacing: '2px' }}>CHAT ROOM</div>
-            <div style={{ fontSize: '10px', color: '#4b6483' }}>Satellite MSG — {chatDevices.length} active channels</div>
+            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#fff', letterSpacing: '2px' }}>{t.title}</div>
+            <div style={{ fontSize: '10px', color: '#4b6483' }}>{t.subtitle} — {chatDevices.length} {t.activeChannels}</div>
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-          <span style={{ fontSize: '10px', color: '#10b981' }}>실시간</span>
+          <span style={{ fontSize: '10px', color: '#10b981' }}>{t.realtime}</span>
           <button onClick={() => { setSearchMode(p => !p); setSearchResults([]); setSearchKeyword(''); }}
             style={{ padding: '6px 14px', background: searchMode ? 'rgba(139,92,246,.2)' : 'rgba(0,212,240,.08)', border: `1px solid ${searchMode ? 'rgba(139,92,246,.5)' : 'rgba(0,212,240,.2)'}`, borderRadius: '8px', color: searchMode ? '#a78bfa' : '#00d4f0', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-            🔍 전문검색
+            {t.search}
           </button>
           <button onClick={() => setShowCompose(true)}
             style={{ padding: '6px 16px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', border: 'none', borderRadius: '8px', color: '#0d1628', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,212,240,.3)' }}>
-            ✉️ 메시지 작성
+            {t.compose}
           </button>
         </div>
       </div>
@@ -138,11 +203,11 @@ export default function ChatRoom({ user, devices = [] }) {
         <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', gap: '8px', flexShrink: 0, background: 'rgba(139,92,246,.05)' }}>
           <input value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="메시지 내용 검색..."
+            placeholder={t.searchPlaceholder}
             style={{ flex: 1, padding: '8px 16px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(139,92,246,.3)', borderRadius: '10px', color: '#fff', fontSize: '12px', outline: 'none' }} />
           <button onClick={handleSearch}
             style={{ padding: '8px 20px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '10px', color: '#a78bfa', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
-            검색
+            {t.searchBtn}
           </button>
         </div>
       )}
@@ -174,8 +239,8 @@ export default function ChatRoom({ user, devices = [] }) {
         {chatDevices.length === 0 ? (
           <div style={{ width: '100%', textAlign: 'center', marginTop: '80px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📡</div>
-            <div style={{ fontSize: '14px', color: '#6b8fae', fontWeight: '700' }}>수신된 메시지가 없습니다</div>
-            <div style={{ fontSize: '11px', color: '#4b6483', marginTop: '6px' }}>위성 장비에서 MSG 수신 시 자동으로 대화방이 생성됩니다.</div>
+            <div style={{ fontSize: '14px', color: '#6b8fae', fontWeight: '700' }}>{t.noMsg}</div>
+            <div style={{ fontSize: '11px', color: '#4b6483', marginTop: '6px' }}>{t.noMsgSub}</div>
           </div>
         ) : chatDevices.map(({ imei, alias, msgs }) => {
           const last4 = msgs.slice(-4);
@@ -219,7 +284,7 @@ export default function ChatRoom({ user, devices = [] }) {
               {/* 최신 4개 메시지 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {last4.length === 0 ? (
-                  <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '8px' }}>메시지 없음</div>
+                  <div style={{ fontSize: '10px', color: '#4b6483', textAlign: 'center', padding: '8px' }}>{t.noMsgInRoom}</div>
                 ) : last4.map((m, i) => {
                   const isRcv = m._type === 'rcv';
                   const text = isRcv ? m.text : (m.memo || '');
@@ -236,8 +301,8 @@ export default function ChatRoom({ user, devices = [] }) {
 
               {/* 하단 — 메시지 수 */}
               <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(0,212,240,.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', color: '#4b6483' }}>총 {msgs.length}개 메시지</span>
-                <span style={{ fontSize: '9px', color: '#00d4f0', fontWeight: '700' }}>대화 열기 →</span>
+                <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.totalMsg} {msgs.length}{t.msgCount}</span>
+                <span style={{ fontSize: '9px', color: '#00d4f0', fontWeight: '700' }}>{t.openChat}</span>
               </div>
             </div>
           );
@@ -258,6 +323,9 @@ export default function ChatRoom({ user, devices = [] }) {
    전체 화면 대화방
 ══════════════════════════════════════ */
 function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, devices }) {
+  const t = CHAT_T[getLang()] || CHAT_T.ko;
+  console.log('isSuperAdmin:', isSuperAdmin);
+  console.log('messages sample:', JSON.stringify(messages[0]));
   const [input, setInput] = useState('');
   const [titleInput, setTitleInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -297,7 +365,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   };
 
   const deleteMessage = async (idx, type) => {
-    if (!isSuperAdmin || !confirm('삭제하시겠습니까?')) return;
+    if (!isSuperAdmin || !confirm(t.deleteConfirm)) return;
     try {
       await api.delete(`/chat/${type}/${idx}`);
       onRefresh();
@@ -310,9 +378,9 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   };
 
   const getStatusIcon = (m) => {
-    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#ef4444' }}>✕ 실패</span>;
-    if (m.status === '1') return <span style={{ fontSize: '9px', color: '#10b981' }}>✓✓ 전송됨</span>;
-    return <span style={{ fontSize: '9px', color: '#f59e0b' }}>⏳ 대기중</span>;
+    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#ef4444' }}>{t.failed}</span>;
+          if (m.status === '1') return <span style={{ fontSize: '9px', color: '#10b981' }}>{t.sent}</span>;
+          return <span style={{ fontSize: '9px', color: '#f59e0b' }}>{t.waiting}</span>;
   };
 
   const draft = localStorage.getItem(`draft_${imei}`);
@@ -324,7 +392,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, background: 'rgba(10,20,40,.9)', backdropFilter: 'blur(10px)' }}>
         <button onClick={onBack}
           style={{ padding: '6px 12px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '8px', color: '#00d4f0', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-          ← 목록
+          {t.back}
         </button>
         <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,rgba(0,212,240,.2),rgba(59,130,246,.1))', border: '1px solid rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>📡</div>
         <div>
@@ -332,7 +400,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
           <div style={{ fontSize: '9px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>{imei}</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '10px', color: '#6b8fae' }}>{messages.length}개 메시지</span>
+          <span style={{ fontSize: '10px', color: '#6b8fae' }}>{messages.length}{t.msgCountLabel}</span>
           <button onClick={onRefresh} style={{ background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer', fontSize: '16px' }}>↻</button>
         </div>
       </div>
@@ -342,7 +410,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
         {messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#6b8fae', fontSize: '13px', marginTop: '60px' }}>
             <div style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.5 }}>💬</div>
-            메시지가 없습니다.
+            {t.noMsgRoom}
           </div>
         ) : messages.map((m, i) => {
           const isRcv = m._type === 'rcv';
@@ -402,12 +470,14 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                       catch (_) { alert('재전송 실패'); }
                     }}
                       style={{ padding: '2px 8px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', fontSize: '9px', cursor: 'pointer' }}>
-                      재전송
+                      {t.retry}
                     </button>
                   )}
-                  {isSuperAdmin && (
+                 {isSuperAdmin && (
                     <button onClick={() => deleteMessage(m.idx, m._type)}
-                      style={{ background: 'none', border: 'none', color: '#4b6483', cursor: 'pointer', fontSize: '10px' }}>🗑</button>
+                      style={{ padding: '3px 8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '4px', color: '#ef4444', fontSize: '10px', cursor: 'pointer', fontWeight: '700' }}>
+                      {t.deleteBtn}
+                    </button>
                   )}
                 </div>
               </div>
@@ -420,9 +490,9 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       {/* 임시저장 알림 */}
       {draft && input !== draft && (
         <div style={{ padding: '6px 20px', background: 'rgba(245,158,11,.08)', borderTop: '1px solid rgba(245,158,11,.2)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontSize: '10px', color: '#f59e0b' }}>📝 임시저장된 내용이 있습니다.</span>
+          <span style={{ fontSize: '10px', color: '#f59e0b' }}>{t.draftAlert}</span>
           <button onClick={() => setInput(draft)}
-            style={{ padding: '2px 8px', background: 'rgba(245,158,11,.15)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '4px', color: '#f59e0b', fontSize: '9px', cursor: 'pointer' }}>불러오기</button>
+            style={{ padding: '2px 8px', background: 'rgba(245,158,11,.15)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '4px', color: '#f59e0b', fontSize: '9px', cursor: 'pointer' }}>{t.loadDraft}</button>
         </div>
       )}
 
@@ -438,7 +508,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   const val = e.target.value;
                   if (getByteLength(val) <= TITLE_MAX) setTitleInput(val);
                 }}
-                placeholder="타이틀 (선택, 최대 20bytes)"
+                placeholder={t.titlePlaceholder}
                 style={{ width: '100%', padding: '8px 70px 8px 14px', borderRadius: '10px', border: '1px solid rgba(0,212,240,.2)', background: 'rgba(255,255,255,.04)', color: '#fff', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
               />
               <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '9px', color: getByteLength(titleInput) > TITLE_MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -454,7 +524,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   if (getByteLength(val) <= MAX) setInput(val);
                 }}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
+                placeholder={t.inputPlaceholder}
                 rows={2}
                 style={{ width: '100%', padding: '12px 16px', paddingBottom: '24px', borderRadius: '14px', border: `1px solid ${getByteLength(input) > MAX * 0.9 ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)'}`, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: '13px', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: '1.5', backdropFilter: 'blur(5px)' }}
               />
@@ -479,6 +549,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
    메시지 작성 팝업
 ══════════════════════════════════════ */
 function ComposePopup({ devices, onClose, onSent }) {
+  const t = CHAT_T[getLang()] || CHAT_T.ko;
   const [selectedImei, setSelectedImei] = useState('');
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
@@ -507,17 +578,17 @@ function ComposePopup({ devices, onClose, onSent }) {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0', letterSpacing: '1px' }}>✉️ 메시지 작성</div>
-            <div style={{ fontSize: '10px', color: '#4b6483', marginTop: '2px' }}>웹 → 위성 장비</div>
+            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0', letterSpacing: '1px' }}>{t.composeTitle}</div>
+            <div style={{ fontSize: '10px', color: '#4b6483', marginTop: '2px' }}>{t.composeSub}</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: '#6b8fae', cursor: 'pointer', fontSize: '14px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>수신 장비 *</label>
+            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>{t.deviceLabel}</label>
             <select style={inp} value={selectedImei} onChange={e => setSelectedImei(e.target.value)}>
-              <option value="">— 장비 선택 —</option>
+              <option value="">{t.deviceSelect}</option>
               {devices.filter(d => d.active !== false).map(d => (
                 <option key={d.imei} value={d.imei}>{d.alias} ({d.imei}) [{d.type}]</option>
               ))}
@@ -525,7 +596,7 @@ function ComposePopup({ devices, onClose, onSent }) {
           </div>
 
           <div>
-            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>타이틀 <span style={{ color: '#4b6483' }}>(선택, 최대 20bytes)</span></label>
+            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>{t.titleLabel} <span style={{ color: '#4b6483' }}>{t.titleLabelSub}</span></label>
             <div style={{ position: 'relative' }}>
               <input style={{ ...inp, paddingRight: '70px' }}
                 value={title}
@@ -533,7 +604,7 @@ function ComposePopup({ devices, onClose, onSent }) {
                   const val = e.target.value;
                   if (getByteLength(val) <= TITLE_MAX) setTitle(val);
                 }}
-                placeholder="메시지 제목 (선택사항)" />
+                placeholder={t.titlePlaceholder} />
               <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '9px', color: getByteLength(title) > TITLE_MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
                 {getByteLength(title)}/{TITLE_MAX}b
               </span>
@@ -541,14 +612,14 @@ function ComposePopup({ devices, onClose, onSent }) {
           </div>
 
           <div>
-            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>메시지 *</label>
+            <label style={{ fontSize: '10px', color: '#6b8fae', display: 'block', marginBottom: '6px', fontWeight: '600', letterSpacing: '1px' }}>{t.msgLabel}</label>
             <div style={{ position: 'relative' }}>
               <textarea style={{ ...inp, resize: 'vertical', minHeight: '100px', paddingBottom: '24px' }}
                 value={text} onChange={e => {
                   const val = e.target.value;
                   if (getByteLength(val) <= MAX) setText(val);
                 }}
-                placeholder="전송할 메시지를 입력하세요..." />
+                placeholder={t.msgPlaceholder} />
               <span style={{ position: 'absolute', bottom: '8px', right: '12px', fontSize: '9px', color: getByteLength(text) > MAX * 0.9 ? '#ef4444' : '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>
                 {getByteLength(text)}/{MAX}bytes
               </span>
@@ -557,22 +628,22 @@ function ComposePopup({ devices, onClose, onSent }) {
 
           {result === 'success' && (
             <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: '10px', fontSize: '12px', color: '#10b981' }}>
-              ✅ 전송 완료! 위성 장비로 전송 대기 중입니다.
+              {t.success}
             </div>
           )}
           {result === 'fail' && (
             <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '10px', fontSize: '12px', color: '#ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              ❌ 전송 실패
-              <button onClick={handleSend} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>재전송</button>
+              {t.fail}
+              <button onClick={handleSend} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>{t.resend}</button>
             </div>
           )}
         </div>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
-          <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>닫기</button>
+          <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>{t.cancel}</button>
           <button onClick={handleSend} disabled={sending || !selectedImei || !text.trim()}
             style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', background: sending || !selectedImei || !text.trim() ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,212,240,.2)', opacity: (!selectedImei || !text.trim()) ? 0.5 : 1 }}>
-            {sending ? '⏳ 전송중...' : '▶ 전송'}
+            {sending ? t.sendingBtn : t.sendBtn}
           </button>
         </div>
       </div>

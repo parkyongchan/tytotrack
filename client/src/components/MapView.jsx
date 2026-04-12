@@ -11,7 +11,7 @@ import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { Style, Circle, Fill, Stroke } from 'ol/style';
 
-export default function MapView({ devices, mapPoints = [], onOpenTrack }) {
+export default function MapView({ devices, allDevices = [], mapPoints = [], onOpenTrack }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markerLayer = useRef(null);
@@ -270,41 +270,50 @@ export default function MapView({ devices, mapPoints = [], onOpenTrack }) {
       </div>
 
       {/* 클릭 정보 박스 */}
-      {clickedDevice && clickPos && (
-        <div style={{ position: 'absolute', left: clickPos.x, top: clickPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.95)', border: `1px solid ${clickedDevice.eventcode === '4' ? 'rgba(239,68,68,.4)' : 'rgba(0,212,240,.3)'}`, borderRadius: '10px', padding: '10px 14px', minWidth: '200px', zIndex: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: clickedDevice.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
-              {clickedDevice.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {clickedDevice.alias || clickedDevice.imei?.slice(-6)}
-            </span>
-            <button onClick={() => { setClickedDevice(null); setClickPos(null); }}
-              style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
-          </div>
-          {[
-            ['IMEI', clickedDevice.imei],
-            ['ALIAS', clickedDevice.alias || '-'],
-            ['LAT', clickedDevice.lat?.toFixed(6)],
-            ['LON', clickedDevice.lon?.toFixed(6)],
-            ['SPD', `${clickedDevice.speed || 0}kn`],
-            ['HDG', `${clickedDevice.heading || 0}°`],
-            ['TIME', clickedDevice.lastUpdate
-              ? `${clickedDevice.lastUpdate.slice(0, 4)}-${clickedDevice.lastUpdate.slice(4, 6)}-${clickedDevice.lastUpdate.slice(6, 8)} ${clickedDevice.lastUpdate.slice(8, 10)}:${clickedDevice.lastUpdate.slice(10, 12)}`
-              : clickedDevice.regDate
-                ? `${clickedDevice.regDate.slice(0, 4)}-${clickedDevice.regDate.slice(4, 6)}-${clickedDevice.regDate.slice(6, 8)} ${clickedDevice.regDate.slice(8, 10)}:${clickedDevice.regDate.slice(10, 12)}`
-                : ''],
-          ].map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
-              <span style={{ fontSize: '9px', color: '#e8f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
+      {clickedDevice && clickPos && (() => {
+        const pos = clickedDevice.position?.split(',') || [];
+        const alt = pos[4] ? `${parseFloat(pos[4]).toFixed(1)}m` : '-';
+        const formatTime = (d) => {
+          if (!d || d.length < 12) return '-';
+          return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${d.slice(8,10)}:${d.slice(10,12)}`;
+        };
+        const timeVal = formatTime(clickedDevice.lastUpdate || clickedDevice.regDate);
+        const getAlias = (imei) => {
+          const d = devices.find(d => d.imei === imei) || allDevices.find(d => d.imei === imei);
+          return d?.alias || clickedDevice.alias || imei?.slice(-6) || '-';
+        };
+        const alias = getAlias(clickedDevice.imei);
+        return (
+          <div style={{ position: 'absolute', left: clickPos.x, top: clickPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.97)', border: `1px solid ${clickedDevice.eventcode === '4' ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.4)'}`, borderRadius: '12px', padding: '14px 20px', minWidth: '280px', zIndex: 20, backdropFilter: 'blur(10px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: clickedDevice.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
+                {clickedDevice.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {alias}
+              </span>
+              <button onClick={() => { setClickedDevice(null); setClickPos(null); }}
+                style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
             </div>
-          ))}
-          {onOpenTrack && (
-            <button onClick={() => { onOpenTrack(clickedDevice); setClickedDevice(null); setClickPos(null); }}
-              style={{ marginTop: '8px', width: '100%', padding: '5px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-              📍 TRACK VIEW →
-            </button>
-          )}
-        </div>
-      )}
+            {[
+              ['LAT', clickedDevice.lat?.toFixed(6)],
+              ['LON', clickedDevice.lon?.toFixed(6)],
+              ['SPD', `${clickedDevice.speed || 0}kn`],
+              ['HDG', `${clickedDevice.heading || 0}°`],
+              ['ALT', alt],
+              ['TIME', timeVal],
+            ].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '12px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                <span style={{ fontSize: '12px', color: k === 'TIME' ? '#f59e0b' : '#e8f4ff', fontFamily: "'JetBrains Mono', monospace", fontWeight: '700' }}>{v}</span>
+              </div>
+            ))}
+            {onOpenTrack && (
+              <button onClick={() => { onOpenTrack(clickedDevice); setClickedDevice(null); setClickPos(null); }}
+                style={{ marginTop: '10px', width: '100%', padding: '7px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '7px', color: '#00d4f0', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
+                📍 TRACK VIEW →
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       <style>{`
         @keyframes sosBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }

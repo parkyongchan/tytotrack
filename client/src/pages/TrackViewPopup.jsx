@@ -11,14 +11,47 @@ import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import LineString from 'ol/geom/LineString';
 import Polygon from 'ol/geom/Polygon';
+import GeomCircle from 'ol/geom/Circle';
+import { getPointResolution } from 'ol/proj';
 import { fromLonLat } from 'ol/proj';
+import { formatDateWithGmt } from '../utils/dateUtils';
+import * as satellite from 'satellite.js';
 import { Style, Circle, Fill, Stroke } from 'ol/style';
 
 
-export default function TrackViewPopup({ device, imei, alias, onClose, defaultPeriod = '3일' }) {
+export default function TrackViewPopup({ device, imei, alias, onClose, defaultPeriod = '3일', devices = [] }) {
+    const uiLang = localStorage.getItem('lang') || 'ko';
+    const TL = {
+      ko: {
+        close: '✕ 닫기', period: '기간', direct: '직접 설정', apply: '적용',
+        rewind: '⏮ REWIND', prev: '◀◀ 이전', play: '▶ 재생', pause: '⏸ 끄기', next: '다음 ▶▶',
+        speed: '속도', total: '건', trackList: 'TRACK LIST',
+        loading: '로딩 중...', nodata: '데이터 없음',
+        autoTrack: '🟢 자동추적 (최근접 위성)', manualSelect: '🟡 수동선택',
+        periods: { '24시': '24시', '48시': '48시', '3일': '3일', '7일': '7일', '30일': '30일' },
+      },
+      en: {
+        close: '✕ Close', period: 'Period', direct: 'Custom', apply: 'Apply',
+        rewind: '⏮ REWIND', prev: '◀◀ Prev', play: '▶ Play', pause: '⏸ Pause', next: 'Next ▶▶',
+        speed: 'Speed', total: 'rows', trackList: 'TRACK LIST',
+        loading: 'Loading...', nodata: 'No data',
+        autoTrack: '🟢 Auto Track (Nearest)', manualSelect: '🟡 Manual',
+        periods: { '24시': '24h', '48시': '48h', '3일': '3d', '7일': '7d', '30일': '30d' },
+      },
+      ja: {
+        close: '✕ 閉じる', period: '期間', direct: '直接設定', apply: '適用',
+        rewind: '⏮ 巻戻し', prev: '◀◀ 前へ', play: '▶ 再生', pause: '⏸ 停止', next: '次へ ▶▶',
+        speed: '速度', total: '件', trackList: 'トラックリスト',
+        loading: '読込中...', nodata: 'データなし',
+        autoTrack: '🟢 自動追跡 (最近衛星)', manualSelect: '🟡 手動選択',
+        periods: { '24시': '24時', '48시': '48時', '3일': '3日', '7일': '7日', '30일': '30日' },
+      },
+    };
+    const t = TL[uiLang] || TL.ko;
     const mapRef = useRef(null);
     const mapObj = useRef(null);
     const vectorSource = useRef(new VectorSource());
+    const satSource = useRef(new VectorSource());
     const [popupPos, setPopupPos] = useState(null);
     const playTimer = useRef(null);
 
@@ -42,6 +75,16 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
       typhoon: false, airspace: false,
     });
     const [weatherPopup, setWeatherPopup] = useState(null);
+    const [satPopup, setSatPopup] = useState(null);
+    const autoTrackRef = useRef(true); // true=자동(가장 가까운 위성), false=수동
+    // 위성 추적 상태: 0=꺼짐, 1=재생, 2=일시정지
+    const [iridiumState, setIridiumState] = useState(0);
+    const [starlinkState, setStarlinkState] = useState(0);
+    const iridiumTimer = useRef(null);
+    const starlinkTimer = useRef(null);
+    const iridiumTLEs = useRef([]);
+    const starlinkTLEs = useRef([]);
+    const selectedSatRef = useRef(null); // 선택된 위성
     const overlayLayers = useRef({});
 
     const OVERLAY_TILES = {
@@ -190,23 +233,299 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
       } catch (_) { /* 무시 */ }
     };
 
+    // TLE 파싱
+    const parseTLE = (text) => {
+      const lines = text.trim().split('\n').map(l => l.trim());
+      const tles = [];
+      for (let i = 0; i < lines.length - 2; i += 3) {
+        if (lines[i + 1]?.startsWith('1 ') && lines[i + 2]?.startsWith('2 ')) {
+          tles.push({ name: lines[i], tle1: lines[i + 1], tle2: lines[i + 2] });
+        }
+      }
+      return tles;
+    };
+
+    // 위성 현재 위치 계산
+    const getSatPositions = (tles) => {
+      const now = new Date();
+      return tles.map(tle => {
+        try {
+          const satrec = satellite.twoline2satrec(tle.tle1, tle.tle2);
+          const posVel = satellite.propagate(satrec, now);
+          if (!posVel.position) return null;
+          const gmst = satellite.gstime(now);
+          const geo = satellite.eciToGeodetic(posVel.position, gmst);
+          return {
+            name: tle.name,
+            lat: satellite.degreesLat(geo.latitude),
+            lon: satellite.degreesLong(geo.longitude),
+            alt: geo.height,
+          };
+        } catch (_) { return null; }
+      }).filter(Boolean);
+    };
+
+    // 두 좌표간 거리 계산 (km)
+    const calcDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    };
+
+    // 커버리지 반경 계산
+    const calcCoverageM = (alt) => {
+      const earthRadius = 6371;
+      const elevRad = 8.2 * Math.PI / 180;
+      const rho = earthRadius / (earthRadius + alt);
+      const coverageKm = earthRadius * (Math.acos(rho * Math.cos(elevRad)) - elevRad);
+      return Math.min(coverageKm, 2500) * 1000;
+    };
+
+    // 위성 마커 그리기
+    const drawSatellites = (positions, type) => {
+      satSource.current.getFeatures()
+        .filter(f => f.get('overlayType') === type || f.get('isCoverage'))
+        .forEach(f => satSource.current.removeFeature(f));
+
+      const color = type === 'iridium' ? '#00d4f0' : '#a78bfa';
+      const icon = type === 'iridium' ? '🛰️' : '⭐';
+
+      // 최신 장비 위치
+      const { lat: devLat, lon: devLon } = getLatestCoord();
+
+      // 자동 추적: 가장 가까운 위성 선택
+      if (autoTrackRef.current) {
+        let minDist = Infinity;
+        let nearestName = null;
+        positions.forEach(pos => {
+          let lon = pos.lon;
+          while (lon > 180) lon -= 360;
+          while (lon < -180) lon += 360;
+          const dist = calcDistance(devLat, devLon, pos.lat, lon);
+          if (dist < minDist) { minDist = dist; nearestName = pos.name; }
+        });
+        if (nearestName) selectedSatRef.current = nearestName;
+      }
+
+      positions.forEach(pos => {
+        if (isNaN(pos.lat) || isNaN(pos.lon)) return;
+        let lon = pos.lon;
+        while (lon > 180) lon -= 360;
+        while (lon < -180) lon += 360;
+
+        const isSelected = selectedSatRef.current === pos.name;
+        const distKm = Math.round(calcDistance(devLat, devLon, pos.lat, lon));
+
+        const f = new Feature({ geometry: new Point(fromLonLat([lon, pos.lat])) });
+        f.set('overlayType', type);
+        f.set('satPos', { ...pos, lon, distKm });
+        f.setStyle(new Style({
+          image: new Circle({
+            radius: isSelected ? 9 : 5,
+            fill: new Fill({ color: isSelected ? '#fff' : color + 'cc' }),
+            stroke: new Stroke({ color: isSelected ? color : '#fff', width: isSelected ? 2.5 : 1.5 }),
+          }),
+        }));
+        satSource.current.addFeature(f);
+
+        // 선택된 위성 커버리지 원
+        if (isSelected) {
+          const coverageM = calcCoverageM(pos.alt);
+          const center = fromLonLat([lon, pos.lat]);
+          const res = getPointResolution('EPSG:3857', 1, center);
+          const radiusInMapUnits = coverageM / res;
+          const circle = new Feature({ geometry: new GeomCircle(center, radiusInMapUnits) });
+          circle.set('isCoverage', true);
+          circle.set('overlayType', type);
+          circle.setStyle(new Style({
+            stroke: new Stroke({ color, width: 1.5, lineDash: [6, 4] }),
+            fill: new Fill({ color: type === 'iridium' ? 'rgba(0,212,240,0.06)' : 'rgba(167,139,250,0.06)' }),
+          }));
+          satSource.current.addFeature(circle);
+
+          // 팝업 자동 업데이트
+          setSatPopup(prev => prev ? { ...prev, pos: { ...pos, lon, distKm }, type } : null);
+        }
+      });
+    };
+
+    // Iridium 위성 토글 (0=꺼짐 → 1=재생 → 2=일시정지 → 0)
+    const toggleIridium = async () => {
+      const next = (iridiumState + 1) % 3;
+      setIridiumState(next);
+
+      if (next === 0) {
+        clearInterval(iridiumTimer.current);
+        satSource.current.getFeatures()
+          .filter(f => f.get('overlayType') === 'iridium' || f.get('isCoverage'))
+          .forEach(f => satSource.current.removeFeature(f));
+        selectedSatRef.current = null;
+        setSatPopup(null);
+        autoTrackRef.current = true;
+        return;
+      }
+
+      if (next === 1) {
+        if (iridiumTLEs.current.length === 0) {
+          try {
+            const res2 = await api.get('/location/tle/iridium');
+            const text = res2.data;
+            iridiumTLEs.current = parseTLE(text).slice(0, 66);
+          } catch (_) {
+            iridiumTLEs.current = [];
+            alert('⚠️ Celestrak 접속 실패');
+          }
+        }
+        autoTrackRef.current = true;
+        selectedSatRef.current = null;
+        const update = () => {
+          const positions = getSatPositions(iridiumTLEs.current);
+          drawSatellites(positions, 'iridium');
+          if (selectedSatRef.current) {
+            const sel = positions.find(p => p.name === selectedSatRef.current);
+            if (sel) {
+              let lon = sel.lon;
+              while (lon > 180) lon -= 360;
+              while (lon < -180) lon += 360;
+              const { lat: devLat, lon: devLon } = getLatestCoord();
+              const distKm = Math.round(calcDistance(devLat, devLon, sel.lat, lon));
+              setSatPopup(prev => ({
+                pos: { ...sel, lon, distKm },
+                type: 'iridium',
+                paired: prev?.type === 'starlink' ? prev : null,
+              }));
+            }
+          }
+        };
+        update();
+        iridiumTimer.current = setInterval(update, 3000);
+        return;
+      }
+
+      if (next === 2) {
+        clearInterval(iridiumTimer.current);
+        return;
+      }
+    };
+
+    // Starlink 위성 토글
+    const toggleStarlink = async () => {
+      const next = (starlinkState + 1) % 3;
+      setStarlinkState(next);
+
+      if (next === 0) {
+        clearInterval(starlinkTimer.current);
+        satSource.current.getFeatures()
+          .filter(f => f.get('overlayType') === 'starlink' || f.get('isCoverage'))
+          .forEach(f => satSource.current.removeFeature(f));
+        selectedSatRef.current = null;
+        setSatPopup(null);
+        autoTrackRef.current = true;
+        return;
+      }
+
+      if (next === 1) {
+        if (starlinkTLEs.current.length === 0) {
+          try {
+            const res2 = await api.get('/location/tle/starlink');
+            const text = res2.data;
+            starlinkTLEs.current = parseTLE(text).slice(0, 100);
+          } catch (_) {
+            starlinkTLEs.current = [];
+            alert('⚠️ Celestrak 접속 실패');
+          }
+        }
+        autoTrackRef.current = true;
+        selectedSatRef.current = null;
+        const update = () => {
+          const positions = getSatPositions(starlinkTLEs.current);
+          drawSatellites(positions, 'starlink');
+          if (selectedSatRef.current) {
+            const sel = positions.find(p => p.name === selectedSatRef.current);
+            if (sel) {
+              let lon = sel.lon;
+              while (lon > 180) lon -= 360;
+              while (lon < -180) lon += 360;
+              const { lat: devLat, lon: devLon } = getLatestCoord();
+              const distKm = Math.round(calcDistance(devLat, devLon, sel.lat, lon));
+              setSatPopup(prev => ({
+                pos: { ...sel, lon, distKm },
+                type: 'starlink',
+                paired: prev?.type === 'iridium' ? prev : null,
+              }));
+            }
+          }
+        };
+        update();
+        starlinkTimer.current = setInterval(update, 3000);
+        return;
+      }
+
+      if (next === 2) {
+        clearInterval(starlinkTimer.current);
+        return;
+      }
+    };
+
+    // cleanup
+    useEffect(() => {
+      return () => {
+        clearInterval(iridiumTimer.current);
+        clearInterval(starlinkTimer.current);
+      };
+    }, []);
+
     // GEO Fence 오버레이 — localStorage에서 조회
     const fetchGeoFence = async () => {
       try {
+        // DB에서 조회
+        const res = await api.get(`/location/command/geo/${imei}`);
+        const dbSlots = Array.isArray(res.data) ? res.data : [];
+
+        // localStorage 병합 (DB 우선)
         const deviceKey = `geo_${imei}`;
         const lastSentSlot = localStorage.getItem(`${deviceKey}_lastSent`);
         const slotsRaw = localStorage.getItem(`${deviceKey}_slots`);
-        const savedSlots = slotsRaw ? JSON.parse(slotsRaw) : null;
+        const localSlots = slotsRaw ? JSON.parse(slotsRaw) : {};
 
-        if (!savedSlots || Object.values(savedSlots).every(v => v === null)) {
-          alert('저장된 GEO Fence가 없습니다.\nGEO Fence 설정에서 먼저 저장 후 전송해주세요.');
+        // DB 슬롯을 targetSlots 형태로 변환
+        const dbSlotMap = {};
+        dbSlots.forEach(s => {
+          if (s.title && s.text) {
+            // command 파싱: G1,DEF1,S010,N,N-1,lat,lon,N-2,lat,lon,...
+            const parts = s.text.split(',');
+            const mode = parts[1] || 'DEF1';
+            const n = parseInt(parts[3]);
+            const points = [];
+            for (let i = 0; i < n; i++) {
+              // 각 포인트: N-순번(1개), lat(1개), lon(1개) = 3개씩
+              const offset = 4 + i * 3;
+              const lat = parseFloat(parts[offset + 1]); // N-순번 건너뜀
+              const lon = parseFloat(parts[offset + 2]);
+              if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon });
+            }
+            if (points.length >= 3) {
+              dbSlotMap[s.title] = { points, mode, command: s.text, status: s.status };
+            }
+          }
+        });
+
+        // DB + localStorage 병합
+        const mergedSlots = { ...localSlots };
+        Object.entries(dbSlotMap).forEach(([slot, data]) => {
+          mergedSlots[slot] = data;
+        });
+
+        if (Object.keys(mergedSlots).length === 0 || Object.values(mergedSlots).every(v => !v)) {
+          alert('저장된 GEO Fence가 없습니다.\nGEO Fence 설정에서 먼저 저장해주세요.');
           return;
         }
 
-        // lastSentSlot 우선, 없으면 저장된 것 전체 표시
-        const targetSlots = lastSentSlot && savedSlots[lastSentSlot]
-          ? { [lastSentSlot]: savedSlots[lastSentSlot] }
-          : savedSlots;
+        const targetSlots = lastSentSlot && mergedSlots[lastSentSlot]
+          ? { [lastSentSlot]: mergedSlots[lastSentSlot] }
+          : mergedSlots;
 
         const modeColors = {
           'DEF1': { stroke: '#10b981', fill: 'rgba(16,185,129,.12)' },
@@ -286,9 +605,12 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
       try {
         const res = await api.get('/location/latest');
         const list = Array.isArray(res.data) ? res.data : [];
+        // 현재 계정이 가진 장비 IMEI만 필터링
+        const myImeis = devices.map(d => d.imei);
         let count = 0;
         list.forEach(d => {
           if (d.imei === imei) return; // 현재 장비 제외
+          if (myImeis.length > 0 && !myImeis.includes(d.imei)) return; // 권한 없는 장비 제외
           const parts = d.position?.split(',') || [];
           const lat = parseFloat(parts[0]);
           const lon = parseFloat(parts[1]);
@@ -608,20 +930,37 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
             layers: [
                 new TileLayer({ source: new OSM() }),
                 new VectorLayer({ source: vectorSource.current }),
+                new VectorLayer({ source: satSource.current, zIndex: 10 }),
             ],
             view: new View({ center: fromLonLat([127.5, 36.5]), zoom: 7 }),
             controls: [],
         });
 
         mapObj.current.on('click', (e) => {
-            const features = mapObj.current.getFeaturesAtPixel(e.pixel);
+            const features = mapObj.current.getFeaturesAtPixel(e.pixel, {
+              layerFilter: () => true
+            });
             if (features.length > 0) {
               const f = features[0];
               if (f.get('pointData')) {
                 setSelectedPoint(f.get('pointData'));
                 setPopupPos({ x: e.pixel[0], y: e.pixel[1] });
+              } else if (f.get('satPos')) {
+                const pos = f.get('satPos');
+                const type = f.get('overlayType');
+                autoTrackRef.current = false; // 수동 클릭 → 자동추적 해제
+                if (selectedSatRef.current === pos.name) {
+                  selectedSatRef.current = null;
+                  setSatPopup(null);
+                } else {
+                  selectedSatRef.current = pos.name;
+                  setSatPopup({ pos, type, pixel: { x: e.pixel[0], y: e.pixel[1] } });
+                }
+                const tles = type === 'iridium' ? iridiumTLEs.current : starlinkTLEs.current;
+                if (tles.length > 0) {
+                  drawSatellites(getSatPositions(tles), type);
+                }
               } else if (f.get('info')) {
-                // 지진/바람/기온 오버레이 클릭
                 alert(f.get('info'));
               }
             } else {
@@ -666,6 +1005,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                 lon: parseFloat(parts[1]),
                 heading: parseFloat(parts[2]) || 0,
                 speed: parseFloat(parts[3]) || 0,
+                altitude: parseFloat(parts[4]) || 0,
                 regDate: d.regDate || d.reg_date,
                 eventcode: d.eventcode,
             };
@@ -738,20 +1078,34 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
         if (playing) {
             playTimer.current = setInterval(() => {
                 setPlayIdx(p => {
-                    if (p <= 0) { setPlaying(false); return 0; }
-                    return p - 1;
+                    const next = p - 1;
+                    if (next < 0) {
+                        setPlaying(false);
+                        return 0;
+                    }
+                    // 지도 중심 이동
+                    const d = filteredData[next];
+                    if (d && mapObj.current) {
+                        const parts = d.position?.split(',') || [];
+                        const lat = parseFloat(parts[0]);
+                        const lon = parseFloat(parts[1]);
+                        if (lat && lon) {
+                            mapObj.current.getView().animate({
+                                center: fromLonLat([lon, lat]),
+                                duration: Math.max(200, 800 / playSpeed),
+                            });
+                        }
+                    }
+                    return next;
                 });
             }, 1000 / playSpeed);
         } else {
             clearInterval(playTimer.current);
         }
         return () => clearInterval(playTimer.current);
-    }, [playing, playSpeed, filteredData.length]);
+    }, [playing, playSpeed, filteredData]);
 
-    const formatDate = (reg) => {
-        if (!reg || reg.length < 12) return '';
-        return `${reg.slice(0, 4)}-${reg.slice(4, 6)}-${reg.slice(6, 8)} ${reg.slice(8, 10)}:${reg.slice(10, 12)}`;
-    };
+    const formatDate = (reg) => formatDateWithGmt(reg);
 
     const totalPages = Math.ceil(filteredData.length / PER_PAGE);
     const paged = filteredData.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -760,7 +1114,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#0a1628', display: 'flex', flexDirection: 'column', fontFamily: "'Syne', sans-serif" }}>
 
             {/* ── 상단 헤더 ── */}
-            <div style={{ height: '48px', background: 'rgba(13,22,40,.98)', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '12px', flexShrink: 0, zIndex: 10 }}>
+            <div className="tvp-header" style={{ height: '48px', background: 'rgba(13,22,40,.98)', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '12px', flexShrink: 0, zIndex: 10 }}>
                 <div style={{ width: '26px', height: '26px', background: 'linear-gradient(135deg,#00d4f0,#3b82f6)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>🛰️</div>
                 <span style={{ fontFamily: "'Orbitron', monospace", fontSize: '10px', fontWeight: '700', letterSpacing: '2px', color: '#fff' }}>TYTO<span style={{ color: '#00d4f0' }}>TRACK</span></span>
                 <div style={{ width: '1px', height: '18px', background: 'rgba(0,212,240,.2)' }} />
@@ -769,25 +1123,25 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                 </span>
                 <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{imei}</span>
                 <button onClick={onClose} style={{ marginLeft: 'auto', padding: '5px 14px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '7px', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
-                    ✕ 닫기
+                    {t.close}
                 </button>
             </div>
 
             {/* ── 기간 + 재생 컨트롤 ── */}
-            <div style={{ height: '44px', background: 'rgba(10,20,38,.95)', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px', flexShrink: 0 }}>
+            <div className="tvp-ctrl" style={{ height: '44px', background: 'rgba(10,20,38,.95)', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px', flexShrink: 0 }}>
                 {/* 기간 버튼 */}
-                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>기간</span>
+                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{t.period}</span>
                 {['24시', '48시', '3일', '7일', '30일'].map(p => (
                     <button key={p} onClick={() => { setPeriod(p); fetchData(p); setPage(1); }}
                         style={{ padding: '4px 10px', background: period === p ? '#00d4f0' : 'rgba(0,212,240,.08)', border: `1px solid ${period === p ? '#00d4f0' : 'rgba(0,212,240,.2)'}`, borderRadius: '6px', color: period === p ? '#0a1628' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-                        {p}
+                        {t.periods[p] || p}
                     </button>
                 ))}
 
                 <div style={{ width: '1px', height: '20px', background: 'rgba(0,212,240,.2)' }} />
 
                 {/* 직접 날짜 설정 */}
-                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>직접 설정</span>
+                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{t.direct}</span>
                 <input type="datetime-local" value={customStart} onChange={e => setCustomStart(e.target.value)}
                     style={{ padding: '3px 6px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", outline: 'none' }} />
                 <span style={{ fontSize: '10px', color: '#6b8fae' }}>~</span>
@@ -795,7 +1149,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                     style={{ padding: '3px 6px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '9px', fontFamily: "'JetBrains Mono', monospace", outline: 'none' }} />
                 <button onClick={applyCustomDate}
                     style={{ padding: '4px 10px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-                    적용
+                    {t.apply}
                 </button>
 
                 <div style={{ width: '1px', height: '20px', background: 'rgba(0,212,240,.2)' }} />
@@ -803,21 +1157,27 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                 {/* 재생 컨트롤 */}
                 <button onClick={() => { setPlayIdx(filteredData.length - 1); setPlaying(false); }}
                     style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>
-                    ⏮ REWIND
+                    {t.rewind}
                 </button>
                 <button onClick={() => setPlayIdx(p => Math.max(0, p - 1))}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>◀◀ 이전</button>
-                <button onClick={() => setPlaying(p => !p)}
+                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>{t.prev}</button>
+                <button onClick={() => {
+                    if (!playing) {
+                        // 재생 시작 시 항상 처음(가장 오래된)부터
+                        setPlayIdx(filteredData.length - 1);
+                    }
+                    setPlaying(p => !p);
+                }}
                     style={{ padding: '4px 12px', background: playing ? 'rgba(239,68,68,.12)' : 'rgba(16,185,129,.12)', border: `1px solid ${playing ? 'rgba(239,68,68,.3)' : 'rgba(16,185,129,.3)'}`, borderRadius: '6px', color: playing ? '#ef4444' : '#10b981', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
-                    {playing ? '⏸ 끄기' : '▶ 재생'}
+                    {playing ? t.pause : t.play}
                 </button>
                 <button onClick={() => setPlayIdx(p => Math.min(filteredData.length - 1, p + 1))}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>다음 ▶▶</button>
+                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>{t.next}</button>
 
                 <div style={{ width: '1px', height: '20px', background: 'rgba(0,212,240,.2)' }} />
 
                 {/* 속도 */}
-                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>속도</span>
+                <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{t.speed}</span>
                 <select value={playSpeed} onChange={e => setPlaySpeed(Number(e.target.value))}
                     style={{ padding: '3px 8px', background: '#1a2d48', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', color: '#00d4f0', fontSize: '10px', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
                     {[0.5, 1, 2, 5, 10].map(s => <option key={s} value={s}>x{s}</option>)}
@@ -825,7 +1185,7 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
 
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
-                        {playIdx + 1} / {filteredData.length}건
+                        {playIdx + 1} / {filteredData.length}{t.total}
                     </span>
                     {filteredData[playIdx] && (
                         <span style={{ fontSize: '10px', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -836,12 +1196,12 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
             </div>
 
             {/* ── 본문 ── */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="tvp-body">
 
-                {/* 빨간색 — 리스트 */}
-                <div style={{ width: '260px', flexShrink: 0, background: 'rgba(10,20,38,.97)', borderRight: '1px solid rgba(0,212,240,.15)', display: 'flex', flexDirection: 'column' }}>
+                {/* 리스트 */}
+                <div style={{ width: '260px', flexShrink: 0, background: 'rgba(10,20,38,.97)', borderRight: '1px solid rgba(0,212,240,.15)', display: 'flex', flexDirection: 'column' }} className="tvp-list">
                     <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                        <span style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>TRACK LIST</span>
+                        <span style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>{t.trackList}</span>
                         <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{filteredData.length}건</span>
                     </div>
 
@@ -855,9 +1215,9 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                     {/* 목록 */}
                     <div style={{ flex: 1, overflowY: 'auto' }}>
                         {loading ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: '#6b8fae', fontSize: '12px' }}>로딩 중...</div>
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#6b8fae', fontSize: '12px' }}>{t.loading}</div>
                         ) : paged.length === 0 ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: '#6b8fae', fontSize: '12px' }}>데이터 없음</div>
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#6b8fae', fontSize: '12px' }}>{t.nodata}</div>
                         ) : paged.map((d, i) => {
                             const globalIdx = (page - 1) * PER_PAGE + i;
                             const parts = d.position?.split(',') || [];
@@ -868,7 +1228,18 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                             const isCurrent = globalIdx === playIdx;
 
                             return (
-                                <div key={i} onClick={() => { setPlayIdx(globalIdx); setSelectedPoint({ lat, lon, heading: parseFloat(parts[2]) || 0, speed: spd, regDate: d.regDate, eventcode: d.eventcode }); }}
+                                <div key={i} onClick={() => {
+                            setPlayIdx(globalIdx);
+                            setSelectedPoint({ lat, lon, heading: parseFloat(parts[2]) || 0, speed: spd, altitude: parseFloat(parts[4]) || 0, regDate: d.regDate, eventcode: d.eventcode });
+                            // 지도 해당 지점으로 이동
+                            if (mapObj.current && lat && lon) {
+                              mapObj.current.getView().animate({
+                                center: fromLonLat([lon, lat]),
+                                zoom: Math.max(mapObj.current.getView().getZoom(), 15),
+                                duration: 500,
+                              });
+                            }
+                          }}
                                     style={{ display: 'grid', gridTemplateColumns: '30px 50px 60px 60px 50px', padding: '5px 12px', borderBottom: '1px solid rgba(0,212,240,.06)', cursor: 'pointer', gap: '2px', background: isCurrent ? 'rgba(0,212,240,.08)' : isSOS ? 'rgba(239,68,68,.05)' : 'transparent', borderLeft: isCurrent ? '2px solid #00d4f0' : '2px solid transparent', animation: isSOS ? 'sosBlink 1.5s infinite' : 'none' }}
                                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.08)'}
                                     onMouseLeave={e => e.currentTarget.style.background = isCurrent ? 'rgba(0,212,240,.08)' : isSOS ? 'rgba(239,68,68,.05)' : 'transparent'}>
@@ -897,27 +1268,54 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                 </div>
 
                 {/* 지도 */}
-                <div style={{ flex: 1, position: 'relative' }}>
+                <div style={{ flex: 1, position: 'relative' }} className="tvp-map">
                     <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 
                     {/* 오버레이 버튼 패널 — 상단 우측 */}
                     <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', flexWrap: 'wrap', gap: '5px', zIndex: 10, maxWidth: '420px' }}>
-                      {[
-                        { key: 'weather', label: '🌤️ 날씨예보', color: '#f59e0b', desc: '7일 예보' },
-                        { key: 'rain', label: '🌧️ 강수', color: '#3b82f6', desc: '실시간 강우' },
-                        { key: 'satellite', label: '🛰️ 위성사진', color: '#8b5cf6', desc: '위성이미지' },
-                        { key: 'seamap', label: '⚓ 해도', color: '#06b6d4', desc: 'OpenSeaMap' },
-                        { key: 'topo', label: '🏔️ 등고선', color: '#10b981', desc: 'OpenTopo' },
-                        { key: 'earthquake', label: '🌍 지진', color: '#ef4444', desc: 'USGS 2.5M+' },
-                        { key: 'wildfire', label: '🔥 산불', color: '#f59e0b', desc: 'NASA FIRMS' },
-                        { key: 'wind', label: '💨 바람', color: '#00d4f0', desc: 'Open-Meteo' },
-                        { key: 'temp', label: '🌡️ 기온', color: '#f97316', desc: 'Open-Meteo' },
-                        { key: 'typhoon', label: '🌀 태풍', color: '#a78bfa', desc: '태풍 경로' },
-                        { key: 'airspace', label: '✈️ 항공제한', color: '#f43f5e', desc: '비행금지구역' },
-                        { key: 'geofence', label: '📍 GEO Fence', color: '#10b981', desc: '설정된 구역' },
-                        { key: 'otherDevices', label: '📡 타장비', color: '#00d4f0', desc: '다른 장비 위치' },
-                        { key: 'heatmap', label: '🔴 이력밀도', color: '#ef4444', desc: '이동 히트맵' },
-                      ].map(btn => (
+                      {(() => {
+                        const uiLang = localStorage.getItem('lang') || 'ko';
+                        const OVERLAY_LABELS = {
+                          ko: {
+                            weather: '🌤️ 날씨예보', rain: '🌧️ 강수', satellite: '🛰️ 위성사진',
+                            seamap: '⚓ 해도', topo: '🏔️ 등고선', earthquake: '🌍 지진',
+                            wildfire: '🔥 산불', wind: '💨 바람', temp: '🌡️ 기온',
+                            typhoon: '🌀 태풍', airspace: '✈️ 항공제한', geofence: '📍 GEO Fence',
+                            otherDevices: '📡 타장비', heatmap: '🔴 이력밀도',
+                          },
+                          en: {
+                            weather: '🌤️ Weather', rain: '🌧️ Rain', satellite: '🛰️ Satellite',
+                            seamap: '⚓ Sea Map', topo: '🏔️ Topo', earthquake: '🌍 Quake',
+                            wildfire: '🔥 Wildfire', wind: '💨 Wind', temp: '🌡️ Temp',
+                            typhoon: '🌀 Typhoon', airspace: '✈️ Airspace', geofence: '📍 GEO Fence',
+                            otherDevices: '📡 Devices', heatmap: '🔴 Heatmap',
+                          },
+                          ja: {
+                            weather: '🌤️ 天気予報', rain: '🌧️ 降水', satellite: '🛰️ 衛星写真',
+                            seamap: '⚓ 海図', topo: '🏔️ 等高線', earthquake: '🌍 地震',
+                            wildfire: '🔥 山火事', wind: '💨 風', temp: '🌡️ 気温',
+                            typhoon: '🌀 台風', airspace: '✈️ 飛行制限', geofence: '📍 GEO Fence',
+                            otherDevices: '📡 他機器', heatmap: '🔴 履歴密度',
+                          },
+                        };
+                        const lb = OVERLAY_LABELS[uiLang] || OVERLAY_LABELS.ko;
+                        return [
+                          { key: 'weather', color: '#f59e0b' },
+                          { key: 'rain', color: '#3b82f6' },
+                          { key: 'satellite', color: '#8b5cf6' },
+                          { key: 'seamap', color: '#06b6d4' },
+                          { key: 'topo', color: '#10b981' },
+                          { key: 'earthquake', color: '#ef4444' },
+                          { key: 'wildfire', color: '#f59e0b' },
+                          { key: 'wind', color: '#00d4f0' },
+                          { key: 'temp', color: '#f97316' },
+                          { key: 'typhoon', color: '#a78bfa' },
+                          { key: 'airspace', color: '#f43f5e' },
+                          { key: 'geofence', color: '#10b981' },
+                          { key: 'otherDevices', color: '#00d4f0' },
+                          { key: 'heatmap', color: '#ef4444' },
+                        ].map(btn => ({ ...btn, label: lb[btn.key] }));
+                      })().map(btn => (
                         <button key={btn.key} onClick={() => toggleOverlay(btn.key)}
                           title={btn.desc}
                           style={{
@@ -933,8 +1331,41 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                       ))}
                     </div>
 
+                    {/* 위성 추적 버튼 */}
+                    <div className="tvp-sat-btn" style={{ position: 'absolute', top: '10px', right: '50px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 10 }}>
+                      {[
+                        {
+                          label: '🛰️', title: 'Iridium', state: iridiumState, onClick: toggleIridium,
+                          colors: ['rgba(14,26,46,.9)', 'rgba(0,212,240,.3)', 'rgba(245,158,11,.3)'],
+                          borders: ['rgba(0,212,240,.3)', '#00d4f0', '#f59e0b'],
+                          texts: ['rgba(0,212,240,.7)', '#00d4f0', '#f59e0b'],
+                          labels: ['OFF', '▶', '⏸'],
+                        },
+                        {
+                          label: '⭐', title: 'Starlink', state: starlinkState, onClick: toggleStarlink,
+                          colors: ['rgba(14,26,46,.9)', 'rgba(167,139,250,.3)', 'rgba(245,158,11,.3)'],
+                          borders: ['rgba(167,139,250,.3)', '#a78bfa', '#f59e0b'],
+                          texts: ['rgba(167,139,250,.7)', '#a78bfa', '#f59e0b'],
+                          labels: ['OFF', '▶', '⏸'],
+                        },
+                      ].map((btn, i) => (
+                        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <button onClick={btn.onClick} title={`${btn.title} (${btn.labels[btn.state]})`}
+                            style={{ width: '36px', height: '36px', background: btn.colors[btn.state], border: `1px solid ${btn.borders[btn.state]}`, borderRadius: '7px', color: btn.texts[btn.state], fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', position: 'relative' }}>
+                            {btn.label}
+                            {btn.state === 1 && (
+                              <span style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', border: '1px solid #fff', animation: 'sosBlink 1s infinite' }} />
+                            )}
+                          </button>
+                          <span style={{ fontSize: '7px', color: btn.texts[btn.state], fontFamily: "'JetBrains Mono', monospace", fontWeight: '700' }}>
+                            {btn.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
                     {/* 지도 컨트롤 버튼 */}
-                    <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 10 }}>
+                    <div className="tvp-ctrl-btn" style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 10 }}>
                         {[
                             { label: '+', onClick: () => mapObj.current?.getView().animate({ zoom: (mapObj.current.getView().getZoom() || 7) + 1, duration: 300 }), title: '확대' },
                             { label: '−', onClick: () => mapObj.current?.getView().animate({ zoom: (mapObj.current.getView().getZoom() || 7) - 1, duration: 300 }), title: '축소' },
@@ -1032,26 +1463,84 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                       </div>
                     )}
 
+                    {/* 위성 정보 팝업 — 지도 우하단 고정 */}
+                    {satPopup && (
+                      <div style={{ position: 'absolute', bottom: '80px', right: '60px', display: 'flex', gap: '8px', zIndex: 30 }}>
+                        {/* paired 팝업 */}
+                        {satPopup.paired && (() => {
+                          const p = satPopup.paired;
+                          const c = p.type === 'iridium' ? '#00d4f0' : '#a78bfa';
+                          return (
+                            <div style={{ background: 'rgba(10,20,38,.97)', border: `1px solid ${c}`, borderRadius: '10px', padding: '12px 14px', minWidth: '180px', backdropFilter: 'blur(8px)' }}>
+                              <div style={{ fontSize: '11px', fontWeight: '700', color: c, fontFamily: "'JetBrains Mono', monospace", marginBottom: '10px' }}>
+                                {p.type === 'iridium' ? '🛰️' : '⭐'} {p.pos.name}
+                              </div>
+                              {[
+                                ['고도', `${Math.round(p.pos.alt)}km`],
+                                ['위도', `${p.pos.lat.toFixed(3)}°`],
+                                ['경도', `${p.pos.lon.toFixed(3)}°`],
+                                ['커버리지', `~${Math.round(calcCoverageM(p.pos.alt)/1000)}km`],
+                                ['장비와 거리', `${p.pos.distKm?.toLocaleString() ?? '-'}km`],
+                              ].map(([k, v]) => (
+                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '5px' }}>
+                                  <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                                  <span style={{ fontSize: '9px', fontWeight: '700', color: k === '장비와 거리' ? '#f59e0b' : '#e8f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {/* 메인 팝업 */}
+                        <div style={{ background: 'rgba(10,20,38,.97)', border: `1px solid ${satPopup.type === 'iridium' ? '#00d4f0' : '#a78bfa'}`, borderRadius: '10px', padding: '12px 14px', minWidth: '180px', backdropFilter: 'blur(8px)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: satPopup.type === 'iridium' ? '#00d4f0' : '#a78bfa', fontFamily: "'JetBrains Mono', monospace" }}>
+                              {satPopup.type === 'iridium' ? '🛰️' : '⭐'} {satPopup.pos.name}
+                            </span>
+                            <button onClick={() => { setSatPopup(null); selectedSatRef.current = null; autoTrackRef.current = true; }}
+                              style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                          </div>
+                          {[
+                            ['고도', `${Math.round(satPopup.pos.alt)}km`],
+                            ['위도', `${satPopup.pos.lat.toFixed(3)}°`],
+                            ['경도', `${satPopup.pos.lon.toFixed(3)}°`],
+                            ['커버리지', `~${Math.round(calcCoverageM(satPopup.pos.alt)/1000)}km 반경`],
+                            ['장비와 거리', `${satPopup.pos.distKm?.toLocaleString() ?? '-'}km`],
+                          ].map(([k, v]) => (
+                            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '5px' }}>
+                              <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                              <span style={{ fontSize: '9px', fontWeight: '700', color: k === '장비와 거리' ? '#f59e0b' : '#e8f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
+                            </div>
+                          ))}
+                          <div style={{ marginTop: '8px', padding: '4px 8px', background: autoTrackRef.current ? 'rgba(16,185,129,.1)' : 'rgba(245,158,11,.1)', borderRadius: '5px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '8px', color: autoTrackRef.current ? '#10b981' : '#f59e0b', fontFamily: "'JetBrains Mono', monospace" }}>
+                              {autoTrackRef.current ? t.autoTrack : t.manualSelect}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* 클릭 팝업 */}
                     {selectedPoint && popupPos && (
-                        <div style={{ position: 'absolute', left: popupPos.x, top: popupPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.95)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '10px', padding: '10px 14px', minWidth: '160px', zIndex: 20 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '10px', fontWeight: '700', color: selectedPoint.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
-                                    {selectedPoint.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'}
+                        <div style={{ position: 'absolute', left: popupPos.x, top: popupPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.97)', border: `1px solid ${selectedPoint.eventcode === '4' ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.4)'}`, borderRadius: '12px', padding: '14px 20px', minWidth: '260px', zIndex: 20, backdropFilter: 'blur(10px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: selectedPoint.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
+                                    {selectedPoint.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {alias}
                                 </span>
                                 <button onClick={() => { setSelectedPoint(null); setPopupPos(null); }}
-                                    style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                                    style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
                             </div>
                             {[
                                 ['LAT', selectedPoint.lat?.toFixed(6)],
                                 ['LON', selectedPoint.lon?.toFixed(6)],
                                 ['SPD', `${selectedPoint.speed}kn`],
                                 ['HDG', `${selectedPoint.heading}°`],
+                                ['ALT', selectedPoint.altitude ? `${selectedPoint.altitude}m` : '-'],
                                 ['TIME', formatDate(selectedPoint.regDate)],
                             ].map(([k, v]) => (
-                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
-                                    <span style={{ fontSize: '9px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
-                                    <span style={{ fontSize: '9px', color: '#e8f4ff', fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
+                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '12px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                                    <span style={{ fontSize: '12px', color: k === 'TIME' ? '#f59e0b' : '#e8f4ff', fontFamily: "'JetBrains Mono', monospace", fontWeight: '700' }}>{v}</span>
                                 </div>
                             ))}
                         </div>
@@ -1061,6 +1550,111 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
 
             <style>{`
         @keyframes sosBlink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        @media (max-width: 412px) {
+          /* 헤더 축소 */
+          .tvp-header {
+            height: auto !important;
+            flex-wrap: wrap !important;
+            padding: 4px 8px !important;
+            gap: 4px !important;
+          }
+          .tvp-header span { font-size: 8px !important; }
+          .tvp-header button { font-size: 9px !important; padding: 3px 8px !important; }
+
+          /* 컨트롤바 — 50% 작게 */
+          .tvp-ctrl {
+            height: auto !important;
+            flex-wrap: wrap !important;
+            padding: 2px 6px !important;
+            gap: 2px !important;
+            overflow-x: hidden !important;
+          }
+          .tvp-ctrl button {
+            font-size: 8px !important;
+            padding: 2px 4px !important;
+          }
+          .tvp-ctrl select {
+            font-size: 8px !important;
+            padding: 2px 3px !important;
+          }
+          .tvp-ctrl input[type="datetime-local"] {
+            font-size: 7px !important;
+            padding: 2px 3px !important;
+            width: 100px !important;
+          }
+          .tvp-ctrl span { font-size: 8px !important; }
+
+          /* 본문 — 세로 배치 */
+          .tvp-body {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+
+          /* 리스트 — 상단, 넘치면 스크롤 */
+          .tvp-list {
+            order: 1 !important;
+            width: 100% !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(0,212,240,.15) !important;
+            height: 240px !important;
+            min-height: 240px !important;
+            max-height: 240px !important;
+            flex-shrink: 0 !important;
+            overflow-y: auto !important;
+          }
+          /* 리스트 내부 목록 스크롤 */
+          .tvp-list > div:last-of-type {
+            overflow-y: auto !important;
+            flex: 1 !important;
+          }
+
+          /* 지도 — 하단 */
+          .tvp-map {
+            order: 2 !important;
+            width: 100% !important;
+            height: 440px !important;
+            min-height: 440px !important;
+            flex-shrink: 0 !important;
+          }
+
+          /* 오버레이 버튼 패널 — 전체폭 */
+          .tvp-map > div > div:first-child {
+            max-width: 100% !important;
+            flex-wrap: wrap !important;
+            top: 6px !important;
+            left: 6px !important;
+            right: 6px !important;
+            gap: 3px !important;
+          }
+          .tvp-map > div > div:first-child button {
+            font-size: 9px !important;
+            padding: 3px 7px !important;
+          }
+
+          /* 위성 버튼 (이리듐/스타링크) — 컨트롤버튼 위로 이동 */
+          .tvp-sat-btn {
+            top: auto !important;
+            bottom: 250px !important;
+            right: 6px !important;
+          }
+
+          /* 지도 컨트롤 버튼 (+,-,⊡,◎) — 우하단으로 이동 */
+          .tvp-map > div > div[style*="right: 10px"][style*="top: 10px"],
+          .tvp-ctrl-btn {
+            top: auto !important;
+            bottom: 70px !important;
+            right: 6px !important;
+          }
+
+          /* 하단 정보바 */
+          .tvp-map > div > div[style*="bottom: 16px"] {
+            font-size: 9px !important;
+            padding: 5px 10px !important;
+            gap: 10px !important;
+          }
+        }
       `}</style>
         </div>
     );

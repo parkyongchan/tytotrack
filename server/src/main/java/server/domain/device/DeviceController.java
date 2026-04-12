@@ -32,8 +32,8 @@ public class DeviceController {
         String loginId = jwtUtil.getLoginId(token);
 
         if (role.equals("SUPER_ADMIN")) {
-            // deletedAt 없는 것만 (완전삭제 제외, 중지 포함)
-            List<Device> all = deviceRepository.findByDeletedAtIsNull();
+            // SUPER_ADMIN은 삭제된 것 포함 전체 조회
+            List<Device> all = deviceRepository.findAll();
             return ResponseEntity.ok(Map.of(
                     "content", all,
                     "totalElements", all.size(),
@@ -141,6 +141,10 @@ public class DeviceController {
                 assignedUser = admin;
             }
         } else if (role.equals("SUPER_ADMIN")) {
+            String selectedCompany = req.get("registeredByCompany");
+            if (selectedCompany != null && !selectedCompany.isEmpty()) {
+                companyId = selectedCompany;
+            }
             String selectedId = req.get("assignedUserId");
             if (selectedId != null && !selectedId.isEmpty()) {
                 try {

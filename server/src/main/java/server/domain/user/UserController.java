@@ -109,14 +109,45 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "사용자 등록 완료"));
     }
 
-    // 사용자 수정
+    /// 사용자 수정
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> req) {
+            @RequestBody Map<String, Object> req,
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.replace("Bearer ", "");
+        String requesterLoginId = jwtUtil.getLoginId(token);
+        String requesterRole = jwtUtil.getRole(token);
 
         return userRepository.findById(id)
                 .map(user -> {
+                    // 권한 체크
+                    if ("REVIEWER".equals(requesterRole)) {
+                        // REVIEWER는 본인 정보만 수정 가능
+                        if (!user.getLoginId().equals(requesterLoginId)) {
+                            return ResponseEntity.status(403)
+                                    .body(Map.of("message", "권한이 없습니다."));
+                        }
+                    } else if ("ADMIN".equals(requesterRole)) {
+                        // ADMIN은 같은 company 소속만 수정 가능
+                        userRepository.findByLoginId(requesterLoginId).ifPresent(requester -> {
+                            // company 체크는 아래 로직에서 처리
+                        });
+                        String requesterCompanyId = userRepository.findByLoginId(requesterLoginId)
+                                .map(u -> u.getCompanyId()).orElse(null);
+                        if (requesterCompanyId == null || !requesterCompanyId.equals(user.getCompanyId())) {
+                            return ResponseEntity.status(403)
+                                    .body(Map.of("message", "같은 회사 소속 사용자만 수정할 수 있습니다."));
+                        }
+                        // ADMIN은 다른 ADMIN이나 SUPER_ADMIN 수정 불가
+                        if (user.getRole() == Role.SUPER_ADMIN ||
+                                (user.getRole() == Role.ADMIN && !user.getLoginId().equals(requesterLoginId))) {
+                            return ResponseEntity.status(403)
+                                    .body(Map.of("message", "해당 사용자를 수정할 권한이 없습니다."));
+                        }
+                    }
+                    // SUPER_ADMIN은 모두 수정 가능
                     if (req.get("name") != null) user.setName(String.valueOf(req.get("name")));
                     if (req.get("email") != null) {
                         String email = String.valueOf(req.get("email"));
@@ -150,7 +181,7 @@ public class UserController {
                     userRepository.save(user);
                     return ResponseEntity.ok(Map.of("message", "수정 완료"));
                 })
-                .orElse(ResponseEntity.notFound().build());
+                .orElse((ResponseEntity) ResponseEntity.notFound().build());
     }
 
     // 사용자 삭제 (비활성화)

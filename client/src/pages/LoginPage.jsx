@@ -113,6 +113,7 @@ export default function LoginPage({ onLogin }) {
       const res = await axios.post('/api/auth/login', { loginId, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('role', res.data.role || 'REVIEWER');
+      localStorage.setItem('gmtZone', res.data.gmtZone ?? 9);
       localStorage.setItem('loginId', res.data.loginId);
       localStorage.setItem('name', res.data.name);
       localStorage.setItem('companyId', res.data.companyId || '');
