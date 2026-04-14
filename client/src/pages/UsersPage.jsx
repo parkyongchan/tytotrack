@@ -76,6 +76,8 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
   const [dupChecked, setDupChecked] = useState(false);
   const [page, setPage] = useState(1);
   const [securecardMsg, setSecurecardMsg] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [checkedIds, setCheckedIds] = useState([]);
   const PER_PAGE = 10;
 
   // 현재 로그인 사용자 role
@@ -117,8 +119,8 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
   const handleSubmit = async () => {
     if (!editUser && !dupChecked) { alert('아이디 중복체크를 해주세요.'); return; }
     if (form.password !== form.passwordConfirm) { setPwMsg(t.pwNoMatch); return; }
-    if (form.role === 'ADMIN' && !form.companyId?.trim()) {
-      alert('ADMIN 계정은 Company ID가 필수입니다.');
+    if (!form.companyId?.trim()) {
+      alert('Company ID는 필수입니다.');
       return;
     }
     try {
@@ -183,8 +185,48 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
     ? ['SUPER_ADMIN', 'ADMIN', 'REVIEWER']
     : ['ADMIN', 'REVIEWER'];
 
-  const totalPages = Math.ceil(users.length / PER_PAGE);
-  const paged = users.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  // 검색 필터링 + 최신 등록순 정렬
+  const filteredUsers = users
+    .filter(u => {
+      if (!searchKeyword.trim()) return true;
+      const kw = searchKeyword.toLowerCase();
+      return (
+        u.loginId?.toLowerCase().includes(kw) ||
+        u.name?.toLowerCase().includes(kw) ||
+        u.companyId?.toLowerCase().includes(kw) ||
+        u.role?.toLowerCase().includes(kw)
+      );
+    })
+    .sort((a, b) => {
+      const aDate = a.createdAt || '';
+      const bDate = b.createdAt || '';
+      return bDate > aDate ? 1 : bDate < aDate ? -1 : 0;
+    });
+   
+
+  const toggleCheck = (id) => {
+    setCheckedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleAllCheck = () => {
+    const pagedIds = paged.map(u => u.id);
+    const allChecked = pagedIds.every(id => checkedIds.includes(id));
+    if (allChecked) setCheckedIds(prev => prev.filter(id => !pagedIds.includes(id)));
+    else setCheckedIds(prev => [...new Set([...prev, ...pagedIds])]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (checkedIds.length === 0) return;
+    if (!confirm(`선택한 ${checkedIds.length}명을 삭제하시겠습니까?`)) return;
+    try {
+      await Promise.all(checkedIds.map(id => api.delete(`/users/${id}`)));
+      setCheckedIds([]);
+      fetchUsers();
+    } catch { alert('삭제 실패'); }
+  };
+
+  const totalPages = Math.ceil(filteredUsers.length / PER_PAGE);
+  const paged = filteredUsers.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const inp = {
     width: '100%', padding: '9px 12px', borderRadius: '8px',
@@ -199,10 +241,39 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
     <div style={{ padding: '16px', flex: 1, overflowY: 'auto', background: '#0d1628' }}>
 
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>
           {t.title}
         </span>
+
+        {/* 검색창 */}
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#6b8fae' }}>🔍</span>
+          <input
+            value={searchKeyword}
+            onChange={e => { setSearchKeyword(e.target.value); setPage(1); }}
+            placeholder="ID / 이름 / Company / 권한"
+            style={{ padding: '6px 12px 6px 30px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.25)', borderRadius: '8px', color: '#fff', fontSize: '11px', outline: 'none', width: '220px' }}
+          />
+          {searchKeyword && (
+            <button onClick={() => { setSearchKeyword(''); setPage(1); }}
+              style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+          )}
+        </div>
+        <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
+          {filteredUsers.length}{t.persons}
+          {searchKeyword && <span style={{ color: '#f59e0b', marginLeft: '6px' }}>검색중</span>}
+        </span>
+
+        {/* 선택삭제 */}
+        {myRole !== 'REVIEWER' && checkedIds.length > 0 && (
+          <button onClick={handleBulkDelete}
+            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+            🗑 선택삭제 ({checkedIds.length})
+          </button>
+        )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
         {myRole !== 'REVIEWER' && (
           <InviteCodeBtn userCompanyId={user?.companyId} />
         )}
@@ -217,12 +288,12 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
             {t.addBtn}
           </button>
         )}
+        </div>
       </div>
 
       {/* 등록/수정 모달 */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={e => e.target === e.currentTarget && closeForm()}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', padding: '28px', width: '620px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.6)' }}>
 
             {/* 모달 헤더 */}
@@ -267,9 +338,9 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
               </div>
 
               {/* 비밀번호 — REVIEWER는 본인 수정 시만, SUPER_ADMIN은 항상 */}
-              {(myRole === 'SUPER_ADMIN' || 
-                (editUser && editUser.loginId === localStorage.getItem('loginId')) ||
-                (myRole === 'ADMIN' && editUser && editUser.role === 'REVIEWER')
+              {(myRole === 'SUPER_ADMIN' ||
+                myRole === 'ADMIN' ||
+                (editUser && editUser.loginId === localStorage.getItem('loginId'))
               ) && (
                 <>
                   <div>
@@ -315,16 +386,26 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
               {/* Company ID */}
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>COMPANY ID {form.role === 'ADMIN' && <span style={{ color: '#ef4444' }}>* 필수</span>} <span style={{ color: '#4b6483', fontSize: '9px' }}>같은 회사 Admin/Reviewer끼리 공유</span></label>
+                <label style={lbl}>
+                  COMPANY ID <span style={{ color: '#ef4444' }}>* 필수</span>
+                  <span style={{ color: '#4b6483', fontSize: '9px', marginLeft: '6px' }}>같은 회사 Admin/Reviewer끼리 공유</span>
+                </label>
                 {(() => {
-                  // ADMIN은 항상 본인 company_id 자동 적용 + 수정 불가
                   const isLocked = myRole === 'REVIEWER' || myRole === 'ADMIN';
+                  const placeholder = myRole === 'SUPER_ADMIN' && form.role === 'REVIEWER'
+                    ? '리뷰어가 소속된 회사 ID를 입력하세요. ID 입력 후 소속 회사 장비도 반드시 할당해야 합니다.'
+                    : '예: company-A, tyto-korea 등 약속된id 입력';
                   return (
-                    <input style={{ ...inp, background: isLocked ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: isLocked ? '#6b8fae' : '#fff' }}
-                      value={form.companyId || ''}
-                      onChange={e => !isLocked && setForm(p => ({ ...p, companyId: e.target.value }))}
-                      readOnly={isLocked}
-                      placeholder="예: company-A, tyto-korea 등 자유롭게 입력" />
+                    <>
+                      <input style={{ ...inp, background: isLocked ? 'rgba(0,0,0,.5)' : 'rgba(0,0,0,.3)', color: isLocked ? '#6b8fae' : '#fff', borderColor: !form.companyId?.trim() ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)' }}
+                        value={form.companyId || ''}
+                        onChange={e => !isLocked && setForm(p => ({ ...p, companyId: e.target.value }))}
+                        readOnly={isLocked}
+                        placeholder={placeholder} />
+                      {!form.companyId?.trim() && (
+                        <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '4px' }}>Company ID는 필수입니다.</p>
+                      )}
+                    </>
                   );
                 })()}
               </div>
@@ -375,8 +456,8 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                   </div>
                 </>
               )}
-              {/* 할당 장비 (SUPER_ADMIN 제외) */}
-              {form.role !== 'SUPER_ADMIN' && devices.length > 0 && (
+              {/* 할당 장비 — REVIEWER만 표시 */}
+              {form.role === 'REVIEWER' && devices.length > 0 && (
                 <DeviceAssignPanel
                   devices={devices}
                   selected={form.assignedDeviceImeis || []}
@@ -420,12 +501,20 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
       {/* 사용자 테이블 */}
       <div style={{ border: '1px solid rgba(0,212,240,.18)', borderRadius: '10px', overflow: 'hidden' }}>
         <div style={{ padding: '8px 14px', background: 'rgba(0,0,0,.2)', fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
-          {t.total} {users.length}{t.persons}
+          {t.total} {filteredUsers.length}{t.persons}
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: 'rgba(0,0,0,.4)' }}>
-              {[t.no, t.id, t.name, t.email, t.country, 'GMT', 'Company', t.role, t.status, t.manage].map(h => (
+              {myRole !== 'REVIEWER' && (
+                <th style={{ padding: '8px 12px', borderBottom: '1px solid rgba(0,212,240,.18)', width: '30px' }}>
+                  <input type="checkbox"
+                    checked={paged.length > 0 && paged.every(u => checkedIds.includes(u.id))}
+                    onChange={toggleAllCheck}
+                    style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                </th>
+              )}
+              {[t.no, t.id, t.name, t.email, t.country, 'GMT', 'Company', t.role, '등록일', t.status, t.manage].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)' }}>{h}</th>
               ))}
             </tr>
@@ -436,8 +525,16 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
             ) : paged.map((u, i) => (
               <tr key={u.id}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.04)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                style={{ borderBottom: '1px solid rgba(0,212,240,.05)' }}>
+                onMouseLeave={e => e.currentTarget.style.background = checkedIds.includes(u.id) ? 'rgba(0,212,240,.05)' : 'transparent'}
+                style={{ borderBottom: '1px solid rgba(0,212,240,.05)', background: checkedIds.includes(u.id) ? 'rgba(0,212,240,.05)' : 'transparent' }}>
+                {myRole !== 'REVIEWER' && (
+                  <td style={{ padding: '8px 12px' }}>
+                    <input type="checkbox"
+                      checked={checkedIds.includes(u.id)}
+                      onChange={() => toggleCheck(u.id)}
+                      style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                  </td>
+                )}
                 <td style={{ padding: '8px 12px', color: '#4b6483' }}>{(page - 1) * PER_PAGE + i + 1}</td>
                 <td style={{ padding: '8px 12px', color: '#7dd3fc', fontFamily: "'JetBrains Mono', monospace" }}>{u.loginId}</td>
                 <td style={{ padding: '8px 12px', color: '#fff', fontWeight: '700' }}>{u.name}</td>
@@ -457,6 +554,21 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
                   }}>
                     {u.role}
                   </span>
+                </td>
+
+            
+
+                <td style={{ padding: '8px 12px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}>
+                  {(() => {
+                    if (!u.createdAt) return '-';
+                    // 배열 형태: [2026, 4, 14, ...]
+                    if (Array.isArray(u.createdAt)) {
+                      const [y, m, d] = u.createdAt;
+                      return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    }
+                    // 문자열 형태: "2026-04-14T15:00:00"
+                    return String(u.createdAt).slice(0, 10);
+                  })()}
                 </td>
                 <td style={{ padding: '8px 12px' }}>
                   <span style={{
@@ -535,7 +647,8 @@ function DeviceAssignPanel({ devices, selected, onToggle, myRole, lbl, label }) 
   const filtered = devices.filter(d =>
     !deviceSearch ||
     d.alias?.toLowerCase().includes(deviceSearch.toLowerCase()) ||
-    d.imei?.includes(deviceSearch)
+    d.imei?.includes(deviceSearch) ||
+    d.registeredByCompany?.toLowerCase().includes(deviceSearch.toLowerCase())
   );
 
   const displayed = showAll ? filtered : filtered.slice(0, PAGE_SIZE);
@@ -561,7 +674,7 @@ function DeviceAssignPanel({ devices, selected, onToggle, myRole, lbl, label }) 
       <input
         value={deviceSearch}
         onChange={e => setDeviceSearch(e.target.value)}
-        placeholder="🔍 장비 검색 (Alias / IMEI)"
+        placeholder="🔍 장비 검색 (Alias / IMEI / Company)"
         style={{ width: '100%', padding: '7px 10px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '7px', color: '#fff', fontSize: '11px', outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }}
       />
 

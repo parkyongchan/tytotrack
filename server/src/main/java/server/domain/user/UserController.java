@@ -64,6 +64,7 @@ public class UserController {
             map.put("textViewRefreshMin", u.getTextViewRefreshMin() != null ? u.getTextViewRefreshMin() : 1);
             map.put("phone", u.getPhone() != null ? u.getPhone() : "");
             map.put("assignedDeviceImeis", u.getAssignedDeviceImeis() != null ? u.getAssignedDeviceImeis() : new java.util.ArrayList<>());
+            map.put("createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : null);
             return map;
         }).toList());
     }

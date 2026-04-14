@@ -23,7 +23,7 @@ const DEV_T = {
     register: '＋ 장비 등록', edit: '✏️ 장비 수정', delete: '🗑 장비 삭제',
     profile: '📋 프로파일', setting: '⚙️ 장비 설정', geo: '🌐 GEO Fence',
     selected: (n) => `${n}개 선택됨`,
-    headers: ['IMEI', 'Alias', 'Model', 'Type', '위성', '회사ID', '개통일', 'Profile', '상태', '관리'],
+    headers: ['IMEI', 'Alias', 'Model', 'Type', '위성', '회사ID', '개통일', '등록일', 'Profile', '상태', '관리'],
     noDevice: '등록된 장비 없음',
     editBtn: '수정', stopBtn: '중지', activeBtn: '활성', deleteBtn: '삭제',
     activatedMsg: '✅ 활성화 되었습니다.', stoppedMsg: '⏸ 중지 되었습니다.',
@@ -119,7 +119,7 @@ const DEV_T = {
     register: '＋ Register', edit: '✏️ Edit', delete: '🗑 Delete',
     profile: '📋 Profile', setting: '⚙️ Settings', geo: '🌐 GEO Fence',
     selected: (n) => `${n} selected`,
-    headers: ['IMEI', 'Alias', 'Model', 'Type', 'Satellite', 'Company', 'Open Date', 'Profile', 'Status', 'Manage'],
+    headers: ['IMEI', 'Alias', 'Model', 'Type', 'Satellite', 'Company', 'Open Date', 'Reg Date', 'Profile', 'Status', 'Manage'],
     noDevice: 'No devices registered',
     editBtn: 'Edit', stopBtn: 'Stop', activeBtn: 'Enable', deleteBtn: 'Delete',
     activatedMsg: '✅ Activated.', stoppedMsg: '⏸ Stopped.',
@@ -210,7 +210,7 @@ const DEV_T = {
     register: '＋ デバイス登録', edit: '✏️ 編集', delete: '🗑 削除',
     profile: '📋 プロファイル', setting: '⚙️ デバイス設定', geo: '🌐 GEO Fence',
     selected: (n) => `${n}個選択中`,
-    headers: ['IMEI', 'エイリアス', 'モデル', 'タイプ', '衛星', '会社ID', '開通日', 'プロファイル', '状態', '管理'],
+    headers: ['IMEI', 'エイリアス', 'モデル', 'タイプ', '衛星', '会社ID', '開通日', '登録日', 'プロファイル', '状態', '管理'],
     noDevice: '登録済みデバイスなし',
     editBtn: '編集', stopBtn: '停止', activeBtn: '有効', deleteBtn: '削除',
     activatedMsg: '✅ 有効化されました。', stoppedMsg: '⏸ 停止されました。',
@@ -309,6 +309,7 @@ export default function DevicesPage({ devices, onRefresh }) {
   const [showGeo, setShowGeo] = useState(false);
   const [users, setUsers] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const PER_PAGE = 10;
 
   const fetchUsers = async () => {
@@ -333,8 +334,26 @@ export default function DevicesPage({ devices, onRefresh }) {
   };
 
   const selectedDevices = devices.filter(d => selected.includes(d.imei));
-  const totalPages = Math.ceil(devices.length / PER_PAGE);
-  const paged = devices.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  // 검색 필터링 + 최신 등록순 정렬
+  const filteredDevices = devices
+    .filter(d => {
+      if (!searchKeyword.trim()) return true;
+      const kw = searchKeyword.toLowerCase();
+      return (
+        d.imei?.toLowerCase().includes(kw) ||
+        d.alias?.toLowerCase().includes(kw) ||
+        d.registeredByCompany?.toLowerCase().includes(kw)
+      );
+    })
+    .sort((a, b) => {
+      const aDate = String(a.openDate || '0');
+      const bDate = String(b.openDate || '0');
+      return bDate.localeCompare(aDate);
+    });
+
+  const totalPages = Math.ceil(filteredDevices.length / PER_PAGE);
+  const paged = filteredDevices.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const btnStyle = (color = '#00d4f0', disabled = false) => ({
     padding: '6px 14px', borderRadius: '7px', border: `1px solid ${color}40`,
@@ -411,6 +430,26 @@ export default function DevicesPage({ devices, onRefresh }) {
             {t.selected(selected.length)}
           </span>
         )}
+
+        {/* 검색창 */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#6b8fae' }}>🔍</span>
+            <input
+              value={searchKeyword}
+              onChange={e => { setSearchKeyword(e.target.value); setPage(1); }}
+              placeholder="IMEI / Alias / Company ID"
+              style={{ padding: '6px 12px 6px 30px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.25)', borderRadius: '8px', color: '#fff', fontSize: '11px', outline: 'none', width: '220px' }}
+            />
+            {searchKeyword && (
+              <button onClick={() => { setSearchKeyword(''); setPage(1); }}
+                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+            )}
+          </div>
+          <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
+            {filteredDevices.length}개
+          </span>
+        </div>
       </div>
 
       {/* 장비 테이블 */}
@@ -450,6 +489,9 @@ export default function DevicesPage({ devices, onRefresh }) {
                   <td style={{ padding: '8px 10px', color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}>{d.registeredByCompany || '-'}</td>
                   <td style={{ padding: '8px 10px', color: '#6b8fae', fontSize: '10px' }}>
                     {d.openDate ? `${String(d.openDate).slice(0, 4)}-${String(d.openDate).slice(4, 6)}-${String(d.openDate).slice(6, 8)}` : '-'}
+                  </td>
+                  <td style={{ padding: '8px 10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px' }}>
+                    {d.createdAt ? `${String(d.createdAt).slice(0, 4)}-${String(d.createdAt).slice(4, 6)}-${String(d.createdAt).slice(6, 8)}` : '-'}
                   </td>
                   <td style={{ padding: '8px 10px', color: '#6b8fae' }}>{d.profileName || '-'}</td>
                   <td style={{ padding: '8px 10px' }}>
@@ -502,7 +544,8 @@ export default function DevicesPage({ devices, onRefresh }) {
         {totalPages > 1 && (
           <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>
-              {devices.length}개 / {page}/{totalPages}p
+              {filteredDevices.length}개 / {page}/{totalPages}p
+              {searchKeyword && <span style={{ color: '#f59e0b', marginLeft: '6px' }}>검색중</span>}
             </span>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '3px 8px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '5px', color: '#00d4f0', cursor: 'pointer', fontSize: '10px', opacity: page === 1 ? 0.3 : 1 }}>«</button>

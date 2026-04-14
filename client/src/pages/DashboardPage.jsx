@@ -75,6 +75,14 @@ export default function DashboardPage({ user, onLogout }) {
 
   const sosCount = devicesWithLocation.filter(d => d.eventcode === '4').length;
   const [unreadMsg, setUnreadMsg] = useState(0);
+  const [sysStatus, setSysStatus] = useState({ Switch: 'ok', Satellite: 'ok', IMT: 'ok' });
+
+  // 서버에서 상태 조회
+  useEffect(() => {
+    api.get('/settings/sys-status')
+      .then(res => setSysStatus(res.data))
+      .catch(() => {});
+  }, []);
   const [todayLocCount, setTodayLocCount] = useState(0);
 
   const lang = localStorage.getItem('lang') || 'ko';
@@ -268,19 +276,42 @@ export default function DashboardPage({ user, onLogout }) {
           <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(0,212,240,.18)' }}>
             <div style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '2px', color: 'rgba(240,248,255,.4)', marginBottom: '12px', fontFamily: "'JetBrains Mono', monospace" }}>SYSTEM STATUS</div>
             {[
-              { label: 'Switch', status: 'ok', text: 'Normal' },
-              { label: 'Satellite', status: 'ok', text: 'Normal' },
-              { label: 'IMT', status: 'warn', text: 'Checking' },
-              { label: 'SOS Active', status: sosCount > 0 ? 'err' : 'ok', text: String(sosCount) },
-            ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'rgba(240,248,255,.7)' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.status === 'ok' ? '#10b981' : s.status === 'warn' ? '#f59e0b' : '#ef4444', boxShadow: `0 0 6px ${s.status === 'ok' ? '#10b981' : s.status === 'warn' ? '#f59e0b' : '#ef4444'}` }} />
-                  <span>{s.label}</span>
+              { key: 'Switch', label: 'Switch' },
+              { key: 'Satellite', label: 'Satellite' },
+              { key: 'IMT', label: 'IMT' },
+              { key: 'SOS', label: 'SOS Active' },
+            ].map((s) => {
+              const isSOS = s.key === 'SOS';
+              const status = isSOS
+                ? (sosCount > 0 ? 'err' : 'ok')
+                : sysStatus[s.key];
+              const text = isSOS
+                ? String(sosCount)
+                : sysStatus[s.key] === 'ok' ? 'Normal' : 'Under Maintenance';
+              const color = status === 'ok' ? '#10b981' : status === 'warn' ? '#f59e0b' : '#ef4444';
+              const isSuperAdmin = localStorage.getItem('role') === 'SUPER_ADMIN';
+              const canToggle = isSuperAdmin && !isSOS;
+
+              return (
+                <div key={s.key}
+                  onClick={() => {
+                    if (!canToggle) return;
+                    const next = { ...sysStatus, [s.key]: sysStatus[s.key] === 'ok' ? 'warn' : 'ok' };
+                    setSysStatus(next);
+                    api.put('/settings/sys-status', next).catch(() => {});
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', cursor: canToggle ? 'pointer' : 'default', padding: canToggle ? '2px 4px' : '2px 4px', borderRadius: '6px', transition: 'background .15s' }}
+                  onMouseEnter={e => { if (canToggle) e.currentTarget.style.background = 'rgba(255,255,255,.05)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'rgba(240,248,255,.7)' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+                    <span>{s.label}</span>
+                    {canToggle && <span style={{ fontSize: '8px', color: '#4b6483' }}>✎</span>}
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color }}>{text}</span>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: s.status === 'ok' ? '#10b981' : s.status === 'warn' ? '#f59e0b' : '#ef4444' }}>{s.text}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
 

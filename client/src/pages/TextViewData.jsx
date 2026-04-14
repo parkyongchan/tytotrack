@@ -14,6 +14,28 @@ export default function TextViewData({ devices, allDevices = [] }) {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const isSuperAdmin = getRole() === 'SUPER_ADMIN';
+  const [checkedIds, setCheckedIds] = useState([]);
+
+  const toggleCheck = (idx) => {
+    setCheckedIds(prev => prev.includes(idx) ? prev.filter(id => id !== idx) : [...prev, idx]);
+  };
+
+  const toggleAll = () => {
+    const pagedIds = paged.map(r => r.idx);
+    const allChecked = pagedIds.every(id => checkedIds.includes(id));
+    if (allChecked) setCheckedIds(prev => prev.filter(id => !pagedIds.includes(id)));
+    else setCheckedIds(prev => [...new Set([...prev, ...pagedIds])]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (checkedIds.length === 0) return;
+    if (!confirm(`선택한 ${checkedIds.length}건을 삭제하시겠습니까?`)) return;
+    try {
+      await Promise.all(checkedIds.map(idx => api.delete(`/location/snd/${idx}`)));
+      setData(prev => prev.filter(d => !checkedIds.includes(d.idx)));
+      setCheckedIds([]);
+    } catch { alert('삭제 실패'); }
+  };
 
   const applyFilter = (rawData, imei) => {
     const myImeis = devices.map(d => d.imei);
@@ -185,8 +207,14 @@ export default function TextViewData({ devices, allDevices = [] }) {
           </button>
         ))}
 
-        {/* 다운로드 */}
+        {/* 다운로드 + 선택삭제 */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+          {isSuperAdmin && checkedIds.length > 0 && (
+            <button onClick={handleBulkDelete}
+              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              🗑 선택삭제 ({checkedIds.length})
+            </button>
+          )}
           <button onClick={downloadCSV} style={btnStyle('#10b981')}>↓ CSV</button>
         </div>
       </div>
@@ -197,6 +225,14 @@ export default function TextViewData({ devices, allDevices = [] }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: '900px' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,.4)', position: 'sticky', top: 0, zIndex: 1 }}>
+                {isSuperAdmin && (
+                  <th style={{ padding: '8px 10px', borderBottom: '1px solid rgba(0,212,240,.18)', width: '30px' }}>
+                    <input type="checkbox"
+                      checked={paged.length > 0 && paged.every(r => checkedIds.includes(r.idx))}
+                      onChange={toggleAll}
+                      style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                  </th>
+                )}
                 {['TYPE', 'IMEI', 'ALIAS', '보낸이', '받는이', '내용', 'DATA', '수신시간', ...(isSuperAdmin ? ['삭제'] : [])].map(h => (
                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
@@ -212,9 +248,17 @@ export default function TextViewData({ devices, allDevices = [] }) {
                 const isIMT = !!row.etc4;
                 return (
                   <tr key={row.idx}
-                    style={{ borderBottom: '1px solid rgba(0,212,240,.05)' }}
+                    style={{ borderBottom: '1px solid rgba(0,212,240,.05)', background: checkedIds.includes(row.idx) ? 'rgba(0,212,240,.05)' : 'transparent' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,212,240,.05)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    onMouseLeave={e => e.currentTarget.style.background = checkedIds.includes(row.idx) ? 'rgba(0,212,240,.05)' : 'transparent'}>
+                    {isSuperAdmin && (
+                      <td style={{ padding: '6px 10px' }}>
+                        <input type="checkbox"
+                          checked={checkedIds.includes(row.idx)}
+                          onChange={() => toggleCheck(row.idx)}
+                          style={{ cursor: 'pointer', accentColor: '#00d4f0' }} />
+                      </td>
+                    )}
                     <td style={{ padding: '6px 10px' }}>
                       <span style={{ fontSize: '9px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: typeInfo.bg, color: typeInfo.color }}>{typeInfo.label}</span>
                     </td>

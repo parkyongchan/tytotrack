@@ -147,7 +147,7 @@ export default function ChatRoom({ devices = [] }) {
     const results = [];
     chatDevices.forEach(({ imei, alias, msgs }) => {
       msgs.forEach(m => {
-        const text = `${m.memo || ''}`.toLowerCase();
+        const text = `${m.memo || ''} ${m.text || ''} ${m.title || ''}`.toLowerCase();
         if (text.includes(kw)) results.push({ imei, alias, msg: m });
       });
     });
@@ -188,10 +188,16 @@ export default function ChatRoom({ devices = [] }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
           <span style={{ fontSize: '10px', color: '#10b981' }}>{t.realtime}</span>
-          <button onClick={() => { setSearchMode(p => !p); setSearchResults([]); setSearchKeyword(''); }}
-            style={{ padding: '6px 14px', background: searchMode ? 'rgba(139,92,246,.2)' : 'rgba(0,212,240,.08)', border: `1px solid ${searchMode ? 'rgba(139,92,246,.5)' : 'rgba(0,212,240,.2)'}`, borderRadius: '8px', color: searchMode ? '#a78bfa' : '#00d4f0', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-            {t.search}
-          </button>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder={t.searchPlaceholder}
+              style={{ padding: '6px 14px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(139,92,246,.3)', borderRadius: '8px', color: '#fff', fontSize: '11px', outline: 'none', width: '200px' }} />
+            <button onClick={handleSearch}
+              style={{ padding: '6px 14px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '8px', color: '#a78bfa', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              {t.searchBtn}
+            </button>
+          </div>
           <button onClick={() => setShowCompose(true)}
             style={{ padding: '6px 16px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', border: 'none', borderRadius: '8px', color: '#0d1628', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,212,240,.3)' }}>
             {t.compose}
@@ -199,22 +205,10 @@ export default function ChatRoom({ devices = [] }) {
         </div>
       </div>
 
-      {/* 전문 검색 */}
-      {searchMode && (
-        <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', gap: '8px', flexShrink: 0, background: 'rgba(139,92,246,.05)' }}>
-          <input value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder={t.searchPlaceholder}
-            style={{ flex: 1, padding: '8px 16px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(139,92,246,.3)', borderRadius: '10px', color: '#fff', fontSize: '12px', outline: 'none' }} />
-          <button onClick={handleSearch}
-            style={{ padding: '8px 20px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '10px', color: '#a78bfa', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
-            {t.searchBtn}
-          </button>
-        </div>
-      )}
+      
 
       {/* 검색 결과 */}
-      {searchMode && searchResults.length > 0 && (
+      {searchResults.length > 0 && (
         <div style={{ padding: '10px 24px', borderBottom: '1px solid rgba(0,212,240,.1)', maxHeight: '180px', overflowY: 'auto', flexShrink: 0 }}>
           {searchResults.map((r, i) => {
             const kw = searchKeyword.toLowerCase();
