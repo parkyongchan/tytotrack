@@ -23,6 +23,7 @@ public class ChatController {
     private final SndEventListRepository sndRepository;
     private final RcvEventListRepository rcvRepository;
     private final JwtUtil jwtUtil;
+    private final server.domain.user.UserRepository userRepository;
 
     // ── 기존 일반 채팅 (하위 호환) ──
     @GetMapping("/{room}")
@@ -62,14 +63,26 @@ public class ChatController {
         return ResponseEntity.ok(messages);
     }
 
-    // ── 웹→위성 메시지 조회 (rcv_event_list) ──
+    // ── 웹→위성 메시지 조회 (전체 - SUPER_ADMIN) ──
     @GetMapping("/rcv")
     public ResponseEntity<?> getRcvMessages(
             @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
         String role = jwtUtil.getRole(token);
+        String loginId = jwtUtil.getLoginId(token);
 
-        List<RcvEventList> messages = rcvRepository.findAllByOrderByRegDateAsc();
+        List<RcvEventList> messages;
+        if (role.equals("SUPER_ADMIN")) {
+            // SUPER_ADMIN: 전체 조회
+            messages = rcvRepository.findAllByOrderByRegDateAsc();
+        } else {
+            // ADMIN/REVIEWER: 본인 메시지만
+            Long userId = userRepository.findByLoginId(loginId)
+                    .map(u -> u.getId()).orElse(null);
+            messages = userId != null
+                    ? rcvRepository.findByUserIdOrderByIdxDesc(userId)
+                    : List.of();
+        }
         return ResponseEntity.ok(messages);
     }
 
@@ -87,11 +100,26 @@ public class ChatController {
 
         String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 
+        Long userId = null;
+        String loginId = null;
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            loginId = jwtUtil.getLoginId(token);
+            userId = userRepository.findByLoginId(loginId)
+                    .map(u -> u.getId()).orElse(null);
+        } catch (Exception ignored) {}
+
+        String msgId = (loginId != null ? loginId : "unknown") + now;
+
         RcvEventList rcv = RcvEventList.builder()
                 .imei(imei)
+                .title(req.get("title"))
                 .text(text)
-                .status("0") // 0: 대기
+                .eventcode("1")
+                .status("0")
                 .regDate(now)
+                .userId(userId)
+                .msgId(msgId)
                 .build();
         rcvRepository.save(rcv);
 
@@ -104,7 +132,6 @@ public class ChatController {
         return rcvRepository.findById(idx)
                 .map(rcv -> {
                     rcv.setStatus("0");
-                    rcv.setMtStatus(null);
                     rcv.setRetryCount(rcv.getRetryCount() == null ? 1 : rcv.getRetryCount() + 1);
                     rcvRepository.save(rcv);
                     return ResponseEntity.ok(Map.of("message", "재전송 등록 완료"));

@@ -15,8 +15,8 @@ const CHAT_T = {
     draftAlert: '📝 임시저장된 내용이 있습니다.', loadDraft: '불러오기',
     inputPlaceholder: '메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)',
     titlePlaceholder: '타이틀 (선택, 최대 20bytes)',
-    sending: '⏳', send: '➤', failed: '✕ 실패', sent: '✓✓ 전송됨', waiting: '⏳ 대기중',
-    retry: '재전송', deleteBtn: '🗑', noMsgRoom: '메시지가 없습니다.',
+    sending: '⏳', send: '➤', failed: '❌ 실패', sent: '✅ 성공', waiting: '⏳ 대기', gw: '📡 GW접수',
+    retry: '재전송', noMsgRoom: '메시지가 없습니다.',
     composeTitle: '✉️ 메시지 작성', composeSub: '웹 → 위성 장비',
     deviceLabel: '수신 장비 *', deviceSelect: '— 장비 선택 —',
     titleLabel: '타이틀', titleLabelSub: '(선택, 최대 20bytes)',
@@ -35,8 +35,8 @@ const CHAT_T = {
     draftAlert: '📝 Draft saved.', loadDraft: 'Load',
     inputPlaceholder: 'Type message... (Enter to send, Shift+Enter for newline)',
     titlePlaceholder: 'Title (optional, max 20bytes)',
-    sending: '⏳', send: '➤', failed: '✕ Failed', sent: '✓✓ Sent', waiting: '⏳ Waiting',
-    retry: 'Retry', deleteBtn: '🗑', noMsgRoom: 'No messages.',
+    sending: '⏳', send: '➤', failed: '❌ Failed', sent: '✅ Success', waiting: '⏳ Waiting', gw: '📡 GW Received',
+    retry: 'Retry', noMsgRoom: 'No messages.',
     composeTitle: '✉️ New Message', composeSub: 'Web → Satellite Device',
     deviceLabel: 'Recipient Device *', deviceSelect: '— Select Device —',
     titleLabel: 'Title', titleLabelSub: '(optional, max 20bytes)',
@@ -55,8 +55,8 @@ const CHAT_T = {
     draftAlert: '📝 下書きがあります。', loadDraft: '読込',
     inputPlaceholder: 'メッセージを入力... (Enter送信、Shift+Enter改行)',
     titlePlaceholder: 'タイトル (任意、最大20bytes)',
-    sending: '⏳', send: '➤', failed: '✕ 失敗', sent: '✓✓ 送信済', waiting: '⏳ 待機中',
-    retry: '再送信', deleteBtn: '🗑', noMsgRoom: 'メッセージがありません。',
+    sending: '⏳', send: '➤', failed: '❌ 失敗', sent: '✅ 成功', waiting: '⏳ 待機中', gw: '📡 GW受信',
+    retry: '再送信', noMsgRoom: 'メッセージがありません。',
     composeTitle: '✉️ メッセージ作成', composeSub: 'Web → 衛星デバイス',
     deviceLabel: '受信デバイス *', deviceSelect: '— デバイスを選択 —',
     titleLabel: 'タイトル', titleLabelSub: '(任意、最大20bytes)',
@@ -78,7 +78,7 @@ const getByteLength = (str) => {
   return bytes;
 };
 
-export default function ChatRoom({ user, devices = [] }) {
+export default function ChatRoom({ devices = [] }) {
   const t = CHAT_T[getLang()] || CHAT_T.ko;
   const [view, setView] = useState('grid');
   const [selectedImei, setSelectedImei] = useState(null);
@@ -108,8 +108,9 @@ export default function ChatRoom({ user, devices = [] }) {
         .filter(m => myImeis.includes(m.imei));
       setSndMessages(snd);
       setRcvMessages(rcv);
-    } catch (_) { /* 무시 */ }
-  }, [devices]);
+    } catch { /* 무시 */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devices.length]);
 
   useEffect(() => {
     fetchMessages();
@@ -360,7 +361,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       setTitleInput('');
       localStorage.removeItem(`draft_${imei}`);
       onRefresh();
-    } catch (_) { alert('전송 실패'); }
+    } catch { alert('전송 실패'); }
     finally { setSending(false); }
   };
 
@@ -369,7 +370,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
     try {
       await api.delete(`/chat/${type}/${idx}`);
       onRefresh();
-    } catch (_) { /* 무시 */ }
+    } catch { /* 무시 */ }
   };
 
   const formatDate = (d) => {
@@ -378,9 +379,10 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   };
 
   const getStatusIcon = (m) => {
-    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#ef4444' }}>{t.failed}</span>;
-          if (m.status === '1') return <span style={{ fontSize: '9px', color: '#10b981' }}>{t.sent}</span>;
-          return <span style={{ fontSize: '9px', color: '#f59e0b' }}>{t.waiting}</span>;
+    if (m.status === '3') return <span style={{ fontSize: '9px', color: '#ef4444' }}>❌ 실패</span>;
+    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#10b981' }}>✅ 성공</span>;
+    if (m.status === '1') return <span style={{ fontSize: '9px', color: '#00d4f0' }}>📡 GW접수</span>;
+    return <span style={{ fontSize: '9px', color: '#f59e0b' }}>⏳ 대기</span>;
   };
 
   const draft = localStorage.getItem(`draft_${imei}`);
@@ -464,7 +466,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRcv ? 'flex-end' : 'flex-start', gap: '3px', flexShrink: 0 }}>
                   <span style={{ fontSize: '9px', color: '#4b6483', whiteSpace: 'nowrap' }}>{formatDate(m.regDate)}</span>
                   {isRcv && <div>{getStatusIcon(m)}</div>}
-                  {isRcv && m.status === '2' && (
+                  {isRcv && m.status === '3' && (
                     <button onClick={async () => {
                       try { await api.put(`/chat/rcv/${m.idx}/retry`); onRefresh(); }
                       catch (_) { alert('재전송 실패'); }
@@ -473,7 +475,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                       {t.retry}
                     </button>
                   )}
-                 {isSuperAdmin && (
+                  {isSuperAdmin && (
                     <button onClick={() => deleteMessage(m.idx, m._type)}
                       style={{ padding: '3px 8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '4px', color: '#ef4444', fontSize: '10px', cursor: 'pointer', fontWeight: '700' }}>
                       {t.deleteBtn}
@@ -567,7 +569,7 @@ function ComposePopup({ devices, onClose, onSent }) {
     try {
       await api.post('/chat/rcv', { imei: selectedImei, title: title.trim(), text: text.trim() });
       setResult('success'); setTitle(''); setText(''); onSent();
-    } catch (_) { setResult('fail'); }
+    } catch { setResult('fail'); }
     finally { setSending(false); }
   };
 

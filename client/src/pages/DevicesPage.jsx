@@ -23,7 +23,7 @@ const DEV_T = {
     register: '＋ 장비 등록', edit: '✏️ 장비 수정', delete: '🗑 장비 삭제',
     profile: '📋 프로파일', setting: '⚙️ 장비 설정', geo: '🌐 GEO Fence',
     selected: (n) => `${n}개 선택됨`,
-    headers: ['IMEI','Alias','Model','Type','위성','회사ID','개통일','Profile','상태','관리'],
+    headers: ['IMEI', 'Alias', 'Model', 'Type', '위성', '회사ID', '개통일', 'Profile', '상태', '관리'],
     noDevice: '등록된 장비 없음',
     editBtn: '수정', stopBtn: '중지', activeBtn: '활성', deleteBtn: '삭제',
     activatedMsg: '✅ 활성화 되었습니다.', stoppedMsg: '⏸ 중지 되었습니다.',
@@ -50,7 +50,7 @@ const DEV_T = {
     sosEmailLabel: 'SOS 이메일', sosKakaoLabel: 'SOS 카카오톡', trackEmailLabel: 'TRACK 이메일 수신자',
     addChannel: '+ 채널 추가', channelSave: '저장', channelCancel: '취소',
     clear: '클리어', saveSetting: '알림 설정 저장', createProfile: '+ 프로파일 생성',
-    profHeaders: ['No','프로파일명','SOS Email','TRACK Email','Actions'],
+    profHeaders: ['No', '프로파일명', 'SOS Email', 'TRACK Email', 'Actions'],
     noProfile: '저장된 프로파일이 없습니다.', close: '닫기',
     deleteConfirmSimple: '삭제하시겠습니까?',
     // DeviceSettingPanel
@@ -63,21 +63,21 @@ const DEV_T = {
     recipientErr: '10자리 또는 15자리만 가능합니다.',
     recipientImei: '✓ IMEI (15자리)', recipientUnit2: '✓ 유닛코드 (10자리)',
     saveAll: '💾 모든 설정 저장', ackNote: '※ ACK 수신시까지 최대 10분 대기',
-    sendCmd: '전송 커맨드: ', waiting: (r,m) => `⏳ 대기 중... (${r}/${m}회)`,
-    failed: (r,m) => `❌ 실패 (${r}/${m}회)`, retry: '재전송',
+    sendCmd: '전송 커맨드: ', waiting: (r, m) => `⏳ 대기 중... (${r}/${m}회)`,
+    failed: (r, m) => `❌ 실패 (${r}/${m}회)`, retry: '재전송',
     maxRetry: (m) => `❌ 재전송 ${m}회 초과 — 저장 비활성화`, success: '✅ 성공',
     deviceCall: 'DEVICE CALL', callNote: '※ 클릭 후 1분간 전체 비활성화',
     noChange: '변경된 항목이 없습니다.', maxRetryAlert: '재전송 횟수(3회)를 초과했습니다. 저장이 비활성화됩니다.',
     maxRetryAlert2: '재전송 횟수(3회)를 초과했습니다.',
-    gpsLabels: { '0':'없음','1':'약함','2':'보통','3':'최상' },
-    signalLabels: { '0':'없음','1':'매우약함','2':'보통','3':'정상','4':'양호','5':'최상' },
+    gpsLabels: { '0': '없음', '1': '약함', '2': '보통', '3': '최상' },
+    signalLabels: { '0': '없음', '1': '매우약함', '2': '보통', '3': '정상', '4': '양호', '5': '최상' },
     // GeoFence
     geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'Device:',
     geoIntersect: '⚠️ 선분이 교차됩니다. 다른 위치를 선택해주세요.',
     geoDrawNote: (max) => `지도 클릭으로 꼭짓점 추가 (최소 3개, 최대 ${max}개)`,
     geoCoordList: 'COORDINATE LIST', geoClickNote: '지도를 클릭하여 꼭짓점을 추가하세요',
     geoSlot: 'GEO-SETTING 슬롯 (1-5)', geoLastSent: '📡 마지막 전송:',
-    geoSavedSlot: (n,m) => `✓ 저장된 슬롯: ${n}개 꼭짓점 / ${m}`,
+    geoSavedSlot: (n, m) => `✓ 저장된 슬롯: ${n}개 꼭짓점 / ${m}`,
     geoCmdPreview: 'COMMAND PREVIEW', geoCmdNote: '— 포트 3개 이상 추가 후 생성됩니다 —',
     geoGuideTitle: '📌 사용 안내',
     geoGuide1: '• 슬롯(GEO-1~5)을 클릭하여 선택하세요.',
@@ -86,8 +86,8 @@ const DEV_T = {
     geoGuide4: ['• ', '전송', '이 완료된 슬롯은 ', '노란색', '으로 변합니다.'],
     geoGuide5: '※ 전송 후 2분간 잠금 / 실패 시 최대 3회 자동 재시도',
     geoGuide6: '💡 노란색 슬롯은 지도 상세보기창의 GEO Fence 버튼을 클릭하면 지도에서 확인 가능합니다.',
-    geoWaiting: (r,m) => `⏳ 대기 중... (${r}/${m}회)`,
-    geoFailed: (r,m) => `❌ 실패 (${r}/${m}회)`, geoRetry: '재전송',
+    geoWaiting: (r, m) => `⏳ 대기 중... (${r}/${m}회)`,
+    geoFailed: (r, m) => `❌ 실패 (${r}/${m}회)`, geoRetry: '재전송',
     geoMaxRetry: (m) => `❌ 재전송 ${m}회 초과 — 잠금`, geoSuccess: '✅ 전송 성공',
     geoLocked: '🔒 2분간 잠금 중...',
     geoSaveBtn: '💾 저장', geoSendBtn: '▶ 전송',
@@ -102,13 +102,24 @@ const DEV_T = {
     ttDef3: '진입/이탈 둘 다 조건으로 작동합니다',
     ttIntervalS: '들어올 때(진입) 시간 인터벌입니다',
     ttIntervalT: '나갈 때(이탈) 시간 인터벌입니다',
+    tipFirmware: '장비 펌웨어 버전입니다.',
+    tipMode: '위치정보입니다. CAR는 위도/경도만, UAV는 위도/경도/방향/속도/고도, UAT는 위도/경도/방향/속도/고도/발송시간을 표시합니다.',
+    tipEvent: '해당 장비의 EVENT 사용여부입니다.',
+    tipTime: '위치보고 시간 주기값입니다. 주기DISTANCE와 동시에 작동됩니다.',
+    tipDist: '위치보고 거리 주기값입니다. 1은 10미터입니다. 주기TIME과 동시에 작동됩니다.',
+    tipCan: 'CAN 데이터 사용여부입니다.',
+    tipCanTime: 'CAN 시간 설정입니다.',
+    tipCanGps: 'CAN + 위치정보 사용여부입니다.',
+    tipCanGpsTime: 'CAN + 위치정보 시간 설정입니다.',
+    tipSos: 'SOS 사용여부입니다.',
+    tipAddr: '수신처 변경이 가능합니다.',
   },
   en: {
     title: 'DEVICE SETTINGS',
     register: '＋ Register', edit: '✏️ Edit', delete: '🗑 Delete',
     profile: '📋 Profile', setting: '⚙️ Settings', geo: '🌐 GEO Fence',
     selected: (n) => `${n} selected`,
-    headers: ['IMEI','Alias','Model','Type','Satellite','Company','Open Date','Profile','Status','Manage'],
+    headers: ['IMEI', 'Alias', 'Model', 'Type', 'Satellite', 'Company', 'Open Date', 'Profile', 'Status', 'Manage'],
     noDevice: 'No devices registered',
     editBtn: 'Edit', stopBtn: 'Stop', activeBtn: 'Enable', deleteBtn: 'Delete',
     activatedMsg: '✅ Activated.', stoppedMsg: '⏸ Stopped.',
@@ -132,7 +143,7 @@ const DEV_T = {
     sosEmailLabel: 'SOS Email', sosKakaoLabel: 'SOS KakaoTalk', trackEmailLabel: 'TRACK Email',
     addChannel: '+ Add Channel', channelSave: 'Save', channelCancel: 'Cancel',
     clear: 'Clear', saveSetting: 'Save Alert Settings', createProfile: '+ Create Profile',
-    profHeaders: ['No','Profile Name','SOS Email','TRACK Email','Actions'],
+    profHeaders: ['No', 'Profile Name', 'SOS Email', 'TRACK Email', 'Actions'],
     noProfile: 'No profiles saved.', close: 'Close',
     deleteConfirmSimple: 'Delete this item?',
     firmware: 'Firmware', verCall: '— Shows after VER-Call —',
@@ -144,20 +155,20 @@ const DEV_T = {
     recipientErr: 'Must be 10 or 15 digits.',
     recipientImei: '✓ IMEI (15 digits)', recipientUnit2: '✓ Unit Code (10 digits)',
     saveAll: '💾 Save All Settings', ackNote: '※ Wait up to 10 min for ACK',
-    sendCmd: 'Command: ', waiting: (r,m) => `⏳ Waiting... (${r}/${m})`,
-    failed: (r,m) => `❌ Failed (${r}/${m})`, retry: 'Retry',
+    sendCmd: 'Command: ', waiting: (r, m) => `⏳ Waiting... (${r}/${m})`,
+    failed: (r, m) => `❌ Failed (${r}/${m})`, retry: 'Retry',
     maxRetry: (m) => `❌ ${m} retries exceeded — disabled`, success: '✅ Success',
     deviceCall: 'DEVICE CALL', callNote: '※ Disabled for 1 min after click',
     noChange: 'No changes detected.', maxRetryAlert: 'Max retries (3) exceeded. Save disabled.',
     maxRetryAlert2: 'Max retries (3) exceeded.',
-    gpsLabels: { '0':'None','1':'Weak','2':'Fair','3':'Best' },
-    signalLabels: { '0':'None','1':'Very Weak','2':'Fair','3':'Normal','4':'Good','5':'Best' },
+    gpsLabels: { '0': 'None', '1': 'Weak', '2': 'Fair', '3': 'Best' },
+    signalLabels: { '0': 'None', '1': 'Very Weak', '2': 'Fair', '3': 'Normal', '4': 'Good', '5': 'Best' },
     geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'Device:',
     geoIntersect: '⚠️ Segments intersect. Choose a different location.',
     geoDrawNote: (max) => `Click map to add vertices (min 3, max ${max})`,
     geoCoordList: 'COORDINATE LIST', geoClickNote: 'Click the map to add vertices',
     geoSlot: 'GEO-SETTING Slots (1-5)', geoLastSent: '📡 Last Sent:',
-    geoSavedSlot: (n,m) => `✓ Saved: ${n} vertices / ${m}`,
+    geoSavedSlot: (n, m) => `✓ Saved: ${n} vertices / ${m}`,
     geoCmdPreview: 'COMMAND PREVIEW', geoCmdNote: '— Add 3+ points to generate —',
     geoGuideTitle: '📌 Instructions',
     geoGuide1: '• Click a slot (GEO-1~5) to select.',
@@ -166,8 +177,8 @@ const DEV_T = {
     geoGuide4: ['• After ', 'Send', ', slot turns ', 'yellow', '.'],
     geoGuide5: '※ Locked 2 min after send / max 3 retries on failure',
     geoGuide6: '💡 Yellow slots can be viewed via GEO Fence button in map detail view.',
-    geoWaiting: (r,m) => `⏳ Waiting... (${r}/${m})`,
-    geoFailed: (r,m) => `❌ Failed (${r}/${m})`, geoRetry: 'Retry',
+    geoWaiting: (r, m) => `⏳ Waiting... (${r}/${m})`,
+    geoFailed: (r, m) => `❌ Failed (${r}/${m})`, geoRetry: 'Retry',
     geoMaxRetry: (m) => `❌ ${m} retries exceeded — locked`, geoSuccess: '✅ Send Success',
     geoLocked: '🔒 Locked for 2 min...',
     geoSaveBtn: '💾 Save', geoSendBtn: '▶ Send',
@@ -182,13 +193,24 @@ const DEV_T = {
     ttDef3: 'Triggers on both entry and exit',
     ttIntervalS: 'Time interval for zone entry',
     ttIntervalT: 'Time interval for zone exit',
+    tipFirmware: 'Device firmware version.',
+    tipMode: 'Location mode. CAR: lat/lon only. UAV: lat/lon/heading/speed/alt. UAT: lat/lon/heading/speed/alt/time.',
+    tipEvent: 'EVENT function on/off for this device.',
+    tipTime: 'Location report time interval. Works simultaneously with Distance cycle.',
+    tipDist: 'Location report distance interval. 1 = 10 meters. Works simultaneously with Time cycle.',
+    tipCan: 'CAN data usage on/off.',
+    tipCanTime: 'CAN time interval setting.',
+    tipCanGps: 'CAN + location data usage on/off.',
+    tipCanGpsTime: 'CAN + location time interval setting.',
+    tipSos: 'SOS function on/off.',
+    tipAddr: 'Change the recipient address.',
   },
   ja: {
     title: 'デバイス設定',
     register: '＋ デバイス登録', edit: '✏️ 編集', delete: '🗑 削除',
     profile: '📋 プロファイル', setting: '⚙️ デバイス設定', geo: '🌐 GEO Fence',
     selected: (n) => `${n}個選択中`,
-    headers: ['IMEI','エイリアス','モデル','タイプ','衛星','会社ID','開通日','プロファイル','状態','管理'],
+    headers: ['IMEI', 'エイリアス', 'モデル', 'タイプ', '衛星', '会社ID', '開通日', 'プロファイル', '状態', '管理'],
     noDevice: '登録済みデバイスなし',
     editBtn: '編集', stopBtn: '停止', activeBtn: '有効', deleteBtn: '削除',
     activatedMsg: '✅ 有効化されました。', stoppedMsg: '⏸ 停止されました。',
@@ -212,7 +234,7 @@ const DEV_T = {
     sosEmailLabel: 'SOS メール', sosKakaoLabel: 'SOS カカオトーク', trackEmailLabel: 'TRACK メール',
     addChannel: '+ チャンネル追加', channelSave: '保存', channelCancel: 'キャンセル',
     clear: 'クリア', saveSetting: '通知設定を保存', createProfile: '+ プロファイル作成',
-    profHeaders: ['No','プロファイル名','SOS Email','TRACK Email','操作'],
+    profHeaders: ['No', 'プロファイル名', 'SOS Email', 'TRACK Email', '操作'],
     noProfile: '保存されたプロファイルがありません。', close: '閉じる',
     deleteConfirmSimple: '削除しますか？',
     firmware: 'ファームウェア', verCall: '— VER-Call後に表示されます —',
@@ -224,20 +246,20 @@ const DEV_T = {
     recipientErr: '10桁または15桁のみ有効です。',
     recipientImei: '✓ IMEI (15桁)', recipientUnit2: '✓ ユニットコード (10桁)',
     saveAll: '💾 全設定を保存', ackNote: '※ ACK受信まで最大10分待機',
-    sendCmd: '送信コマンド: ', waiting: (r,m) => `⏳ 待機中... (${r}/${m}回)`,
-    failed: (r,m) => `❌ 失敗 (${r}/${m}回)`, retry: '再送信',
+    sendCmd: '送信コマンド: ', waiting: (r, m) => `⏳ 待機中... (${r}/${m}回)`,
+    failed: (r, m) => `❌ 失敗 (${r}/${m}回)`, retry: '再送信',
     maxRetry: (m) => `❌ 再送信${m}回超過 — 無効`, success: '✅ 成功',
     deviceCall: 'デバイスコール', callNote: '※ クリック後1分間無効',
     noChange: '変更項目がありません。', maxRetryAlert: '再送信回数(3回)を超えました。保存が無効になります。',
     maxRetryAlert2: '再送信回数(3回)を超えました。',
-    gpsLabels: { '0':'なし','1':'弱','2':'普通','3':'最良' },
-    signalLabels: { '0':'なし','1':'非常に弱','2':'普通','3':'正常','4':'良好','5':'最良' },
+    gpsLabels: { '0': 'なし', '1': '弱', '2': '普通', '3': '最良' },
+    signalLabels: { '0': 'なし', '1': '非常に弱', '2': '普通', '3': '正常', '4': '良好', '5': '最良' },
     geoTitle: 'GEO FENCE CONFIGURATION', geoDevice: 'デバイス:',
     geoIntersect: '⚠️ 線分が交差しています。別の位置を選択してください。',
     geoDrawNote: (max) => `地図をクリックして頂点を追加 (最小3、最大${max})`,
     geoCoordList: '座標リスト', geoClickNote: '地図をクリックして頂点を追加してください',
     geoSlot: 'GEO設定スロット (1-5)', geoLastSent: '📡 最終送信:',
-    geoSavedSlot: (n,m) => `✓ 保存済: ${n}頂点 / ${m}`,
+    geoSavedSlot: (n, m) => `✓ 保存済: ${n}頂点 / ${m}`,
     geoCmdPreview: 'コマンドプレビュー', geoCmdNote: '— 3点以上追加後に生成されます —',
     geoGuideTitle: '📌 使用方法',
     geoGuide1: '• スロット(GEO-1~5)をクリックして選択。',
@@ -246,8 +268,8 @@ const DEV_T = {
     geoGuide4: ['• ', '送信', ' 完了後スロットが ', '黄色', ' に変わります。'],
     geoGuide5: '※ 送信後2分ロック / 失敗時最大3回リトライ',
     geoGuide6: '💡 黄色スロットは地図詳細画面のGEO Fenceボタンで確認できます。',
-    geoWaiting: (r,m) => `⏳ 待機中... (${r}/${m}回)`,
-    geoFailed: (r,m) => `❌ 失敗 (${r}/${m}回)`, geoRetry: '再送信',
+    geoWaiting: (r, m) => `⏳ 待機中... (${r}/${m}回)`,
+    geoFailed: (r, m) => `❌ 失敗 (${r}/${m}回)`, geoRetry: '再送信',
     geoMaxRetry: (m) => `❌ 再送信${m}回超過 — ロック`, geoSuccess: '✅ 送信成功',
     geoLocked: '🔒 2分間ロック中...',
     geoSaveBtn: '💾 保存', geoSendBtn: '▶ 送信',
@@ -262,6 +284,17 @@ const DEV_T = {
     ttDef3: '進入・離脱の両方で作動します',
     ttIntervalS: '進入時の時間インターバルです',
     ttIntervalT: '離脱時の時間インターバルです',
+    tipFirmware: 'デバイスファームウェアバージョンです。',
+    tipMode: '位置情報モードです。CAR:緯度経度のみ、UAV:緯度経度方向速度高度、UAT:緯度経度方向速度高度送信時間。',
+    tipEvent: 'このデバイスのEVENT使用可否です。',
+    tipTime: '位置報告時間周期値です。距離周期と同時に動作します。',
+    tipDist: '位置報告距離周期値です。1は10メートルです。時間周期と同時に動作します。',
+    tipCan: 'CANデータ使用可否です。',
+    tipCanTime: 'CAN時間設定です。',
+    tipCanGps: 'CAN+位置情報使用可否です。',
+    tipCanGpsTime: 'CAN+位置情報時間設定です。',
+    tipSos: 'SOS使用可否です。',
+    tipAddr: '受信先の変更が可能です。',
   },
 };
 
@@ -278,18 +311,18 @@ export default function DevicesPage({ devices, onRefresh }) {
   const [profiles, setProfiles] = useState([]);
   const PER_PAGE = 10;
 
+  const fetchUsers = async () => {
+    try { const r = await api.get('/users'); setUsers(Array.isArray(r.data) ? r.data : []); } catch (e) { console.error(e); }
+  };
+
+  const fetchProfiles = async () => {
+    try { const r = await api.get('/profiles'); setProfiles(Array.isArray(r.data) ? r.data : []); } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchProfiles();
   }, []);
-
-  const fetchUsers = async () => {
-    try { const r = await api.get('/users'); setUsers(Array.isArray(r.data) ? r.data : []); } catch { }
-  };
-
-  const fetchProfiles = async () => {
-    try { const r = await api.get('/profiles'); setProfiles(Array.isArray(r.data) ? r.data : []); } catch { }
-  };
 
   const toggleSelect = (imei) => {
     setSelected(p => p.includes(imei) ? p.filter(i => i !== imei) : [...p, imei]);
@@ -313,7 +346,7 @@ export default function DevicesPage({ devices, onRefresh }) {
   const myRole = getRole();
   const canEdit = myRole === 'SUPER_ADMIN' || myRole === 'ADMIN';
   const canEditDevice = myRole === 'SUPER_ADMIN' || myRole === 'ADMIN' || myRole === 'REVIEWER';
-  const isSuperAdmin = myRole === 'SUPER_ADMIN';
+  // const isSuperAdmin = myRole === 'SUPER_ADMIN';
 
   return (
     <div style={{ padding: '16px', flex: 1, overflowY: 'auto', background: '#0d1628' }}>
@@ -389,7 +422,7 @@ export default function DevicesPage({ devices, onRefresh }) {
                 <input type="checkbox" checked={selected.length === devices.length && devices.length > 0}
                   onChange={toggleAll} style={{ cursor: 'pointer' }} />
               </th>
-              {[...t.headers.slice(0,8), ...(canEdit ? [t.headers[8]] : [])].map(h => (
+              {[...t.headers.slice(0, 8), ...(canEdit ? [t.headers[8]] : [])].map(h => (
                 <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#6b8fae', borderBottom: '1px solid rgba(0,212,240,.18)', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -755,11 +788,11 @@ function ProfilePopup({ onClose }) {
   const [page, setPage] = useState(1);
   const PER = 10;
 
-  useEffect(() => { fetchProfiles(); }, []);
-
   const fetchProfiles = async () => {
-    try { const r = await api.get('/profiles'); setProfiles(Array.isArray(r.data) ? r.data : []); } catch { }
+    try { const r = await api.get('/profiles'); setProfiles(Array.isArray(r.data) ? r.data : []); } catch (e) { console.error(e); }
   };
+
+  useEffect(() => { fetchProfiles(); }, []);
 
   const saveProfile = async () => {
     try {
@@ -963,6 +996,8 @@ function DeviceSettingPanel({ device, onClose }) {
   const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'waiting', 'success', 'failed'
   const [retryCount, setRetryCount] = useState(0);
   const [callDisabled, setCallDisabled] = useState(false);
+  const [callCountdown, setCallCountdown] = useState(0);
+  const callCountdownRef = useRef(null);
   const MAX_RETRY = 3;
 
   // VER 파싱
@@ -1000,6 +1035,7 @@ function DeviceSettingPanel({ device, onClose }) {
         const verItem = list.find(d => d.ver && d.ver.trim() !== '');
         if (verItem?.ver) {
           const parsed = parseVer(verItem.ver);
+          parsed.regDate = verItem.regDate;
           setVerData(parsed);
           const init = {
             mode: parsed.mode,
@@ -1037,7 +1073,7 @@ function DeviceSettingPanel({ device, onClose }) {
       else if (r.length === 10) cmds.push(`U${r}`);
     }
     if (settings.event !== original.event) cmds.push(settings.event === 'ON' ? 'E' : 'e');
-    // CAN
+    if (settings.sosUse !== original.sosUse) cmds.push(settings.sosUse ? 'SOS' : 'sos');
     const origCan = original.canUse ? (original.canGps ? '2' : '1') : '0';
     const newCan = settings.canUse ? (settings.canGps ? '2' : '1') : '0';
     if (newCan !== origCan) {
@@ -1048,7 +1084,7 @@ function DeviceSettingPanel({ device, onClose }) {
       if (newCan === '1' && settings.canTime !== original.canTime) cmds.push(`A${settings.canTime}`);
       if (newCan === '2' && settings.canGpsTime !== original.canGpsTime) cmds.push(`a${settings.canGpsTime}`);
     }
-    return cmds.length > 0 ? cmds.join(',') : null;
+    return cmds.length > 0 ? `SET=${cmds.join(',')}` : null;
   };
 
   const isChanged = () => {
@@ -1056,18 +1092,41 @@ function DeviceSettingPanel({ device, onClose }) {
     return JSON.stringify(settings) !== JSON.stringify(original);
   };
 
+  const [saveLocked, setSaveLocked] = useState(false);
+  const [callStatuses, setCallStatuses] = useState({});
+
+  const savePollingRef = useRef(null);
+  const callPollingRef = useRef(null);
+
+  const startPolling = (idxVal, statusSetter) => {
+    let count = 0;
+    const timer = setInterval(async () => {
+      count++;
+      if (count > 60) { clearInterval(timer); statusSetter('3'); return; }
+      try {
+        const res = await api.get(`/location/command/status/${idxVal}`);
+        const st = res.data?.status;
+        if (st === '1') { statusSetter('1'); }
+        if (st === '2') { clearInterval(timer); statusSetter('2'); }
+        if (st === '3') { clearInterval(timer); statusSetter('3'); }
+      } catch { /* 무시 */ }
+    }, 5000);
+    return timer;
+  };
+
   const doSave = async () => {
     const cmd = buildCommand();
     if (!cmd) { alert(t.noChange); return; }
-    setSaving(true); setSaveStatus('saving');
+    setSaving(true); setSaveStatus('0');
     try {
-      await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' });
-      setSaveStatus('waiting');
-      setTimeout(() => {
-        setSaveStatus(prev => prev === 'waiting' ? 'failed' : prev);
-      }, 600000);
-    } catch (_) {
-      setSaveStatus('failed');
+      const res = await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' });
+      setSaveStatus('0');
+      setSaveLocked(true);
+      setTimeout(() => setSaveLocked(false), 180000);
+      clearInterval(savePollingRef.current);
+      savePollingRef.current = startPolling(res.data?.idx, setSaveStatus);
+    } catch {
+      setSaveStatus('3');
     } finally { setSaving(false); }
   };
 
@@ -1084,9 +1143,31 @@ function DeviceSettingPanel({ device, onClose }) {
 
   const handleCall = async (cmd) => {
     setCallDisabled(true);
-    try { await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' }); }
-    catch (_) { /* 무시 */ }
-    setTimeout(() => setCallDisabled(false), 60000);
+    setCallStatuses(p => ({ ...p, [cmd]: '0' }));
+    setCallCountdown(60);
+    clearInterval(callCountdownRef.current);
+    callCountdownRef.current = setInterval(() => {
+      setCallCountdown(p => {
+        if (p <= 1) {
+          clearInterval(callCountdownRef.current);
+          setCallDisabled(false);
+          return 0;
+        }
+        return p - 1;
+      });
+    }, 1000);
+    try {
+      const res = await api.post('/location/command', { imei: device.imei, text: cmd, eventcode: '2' });
+      const idxVal = res.data?.idx;
+      if (idxVal) {
+        clearInterval(callPollingRef.current);
+        callPollingRef.current = startPolling(idxVal, (st) => {
+          setCallStatuses(p => ({ ...p, [cmd]: st }));
+        });
+      }
+    } catch {
+      setCallStatuses(p => ({ ...p, [cmd]: '3' }));
+    }
   };
 
   const toggleStyle = (on, disabled = false) => ({
@@ -1105,15 +1186,23 @@ function DeviceSettingPanel({ device, onClose }) {
     fontFamily: "'JetBrains Mono', monospace",
   };
 
-  const rowStyle = { display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.06)' };
+  const rowStyle = { display: 'flex', alignItems: 'center', padding: '6px 14px', borderBottom: '1px solid rgba(0,212,240,.06)' };
   const lblStyle = { width: '200px', fontSize: '12px', color: '#a0b4c8', flexShrink: 0 };
 
-  const canSave = isChanged() && !saving && retryCount < MAX_RETRY;
+  const getStatusLabel = (st) => {
+    if (st === '0') return <span style={{ fontSize: '10px', color: '#f59e0b' }}>⏳ 대기</span>;
+    if (st === '1') return <span style={{ fontSize: '10px', color: '#00d4f0' }}>📡 GW접수</span>;
+    if (st === '2') return <span style={{ fontSize: '10px', color: '#10b981' }}>✅ 성공</span>;
+    if (st === '3') return <span style={{ fontSize: '10px', color: '#ef4444' }}>❌ 실패</span>;
+    return null;
+  };
+
+  const canSave = isChanged() && !saving && retryCount < MAX_RETRY && !saveLocked;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', width: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ background: '#1a2d48', border: '1px solid rgba(0,212,240,.25)', borderRadius: '16px', width: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
 
         {/* 헤더 */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1125,9 +1214,11 @@ function DeviceSettingPanel({ device, onClose }) {
         </div>
 
         {/* Firmware 버전 표시 */}
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(239,68,68,.05)' }}>
-          <span style={{ fontSize: '11px', fontWeight: '700', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>Firmware</span>
-          <span style={{ fontSize: '16px', fontWeight: '700', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
+        <div title={t.tipFirmware} style={{ padding: '10px 14px', borderBottom: '1px solid rgba(0,212,240,.1)', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(239,68,68,.05)' }}>
+          <span style={{
+            fontSize: '11px', fontWeight: '700', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px'
+          }}>Firmware</span>
+          < span style={{ fontSize: '16px', fontWeight: '700', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
             {verData ? verData.verNum : t.verCall}
           </span>
         </div>
@@ -1136,7 +1227,7 @@ function DeviceSettingPanel({ device, onClose }) {
         <div style={{ padding: '8px 0' }}>
 
           {/* Mode */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipMode}>
             <span style={lblStyle}>Mode</span>
             <select value={settings.mode} onChange={e => set('mode', e.target.value)} style={{ ...inp, width: '160px' }}>
               <option value="C">CAR (C)</option>
@@ -1146,7 +1237,7 @@ function DeviceSettingPanel({ device, onClose }) {
           </div>
 
           {/* Event */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipEvent}>
             <span style={lblStyle}>Event</span>
             <select value={settings.event} onChange={e => set('event', e.target.value)} style={{ ...inp, width: '100px' }}>
               <option value="ON">ON</option>
@@ -1155,35 +1246,55 @@ function DeviceSettingPanel({ device, onClose }) {
           </div>
 
           {/* 주기 Time — 4자리 */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipTime}>
             <span style={lblStyle}>{t.cycleTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select onChange={e => { if (e.target.value) set('timeInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
-                <option value="">{t.selectOption}</option>
-              {['0001','0005','0010','0030','0060'].map(v => <option key={v} value={v}>{parseInt(v)}min</option>)}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select value={parseInt(settings.timeInput) || 0}
+                onChange={e => { if (e.target.value) set('timeInput', String(e.target.value).padStart(4, '0')); }}
+                style={{ ...inp, width: '90px' }}>
+                <option value="0">{t.selectOption}</option>
+                {[1, 5, 10, 30, 60, 120, 240].map(v => <option key={v} value={v}>{v}min</option>)}
               </select>
-              <input style={{ ...inp, width: '80px' }} value={settings.timeInput} maxLength={4}
-                onChange={e => set('timeInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
+              <input style={{ ...inp, width: '70px', border: '1px solid rgba(16,185,129,.4)' }}
+                value={parseInt(settings.timeInput) || ''}
+                maxLength={4}
+                placeholder="1~9999"
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  if (val === '') { set('timeInput', '0000'); return; }
+                  const num = parseInt(val);
+                  if (num < 1) return;
+                  set('timeInput', val.padStart(4, '0'));
+                }} />
+              <span style={{ fontSize: '9px', color: '#6b8fae' }}>분</span>
             </div>
           </div>
 
           {/* 주기 Distance */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipDist}>
             <span style={lblStyle}>{t.cycleDist} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unit10m}</span></span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <select onChange={e => { if (e.target.value) set('distInput', e.target.value); }} style={{ ...inp, width: '100px' }}>
-                <option value="">{t.selectOption}</option>
-              {['0010','0050','0100','0500','1000'].map(v => <option key={v} value={v}>{parseInt(v) * 10}m</option>)}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select value={parseInt(settings.distInput) || 0}
+                onChange={e => { if (e.target.value) set('distInput', String(e.target.value).padStart(4, '0')); }}
+                style={{ ...inp, width: '90px' }}>
+                <option value="0">{t.selectOption}</option>
+                {[10, 50, 100, 500, 1000].map(v => <option key={v} value={v}>{v * 10}m</option>)}
               </select>
-              <input style={{ ...inp, width: '80px' }} value={settings.distInput} maxLength={4}
-                onChange={e => set('distInput', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
+              <input style={{ ...inp, width: '70px', border: '1px solid rgba(16,185,129,.4)' }}
+                value={parseInt(settings.distInput) || ''}
+                maxLength={4}
+                placeholder="1~9999"
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  if (val === '') { set('distInput', '0000'); return; }
+                  set('distInput', val.padStart(4, '0'));
+                }} />
+              <span style={{ fontSize: '9px', color: '#6b8fae' }}>×10m</span>
             </div>
           </div>
 
           {/* CAN */}
-          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', border: '1px solid rgba(16,185,129,.15)', borderRadius: '6px', margin: '4px 8px' }}>
+          <div title={t.tipCan} style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', border: '1px solid rgba(16,185,129,.15)', borderRadius: '6px', margin: '4px 8px' }}>
             <span style={lblStyle}>{t.canUse}</span>
             <button style={toggleStyle(settings.canUse && !settings.canGps)}
               onClick={() => {
@@ -1196,19 +1307,33 @@ function DeviceSettingPanel({ device, onClose }) {
             </button>
           </div>
 
-          {/* CAN 시간 설정 — CAN ON && CAN+GPS OFF 시 활성화 */}
-          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', opacity: settings.canUse && !settings.canGps ? 1 : 0.35 }}>
+          {/* CAN 시간 설정 */}
+          <div style={{ ...rowStyle, background: 'rgba(16,185,129,.03)', opacity: settings.canUse && !settings.canGps ? 1 : 0.35 }} title={t.tipCanTime}>
             <span style={lblStyle}>{t.canTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input style={{ ...inp, width: '80px' }} value={settings.canTime} maxLength={4}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select value={parseInt(settings.canTime) || 0}
                 disabled={!settings.canUse || settings.canGps}
-                onChange={e => set('canTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
+                onChange={e => { if (e.target.value) set('canTime', String(e.target.value).padStart(4, '0')); }}
+                style={{ ...inp, width: '90px' }}>
+                <option value="0">{t.selectOption}</option>
+                {[1, 5, 10, 30, 60, 120].map(v => <option key={v} value={v}>{v}min</option>)}
+              </select>
+              <input style={{ ...inp, width: '70px', border: `1px solid ${settings.canUse && !settings.canGps ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)'}` }}
+                value={parseInt(settings.canTime) || ''}
+                maxLength={4}
+                placeholder="1~9999"
+                disabled={!settings.canUse || settings.canGps}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  if (val === '') { set('canTime', '0000'); return; }
+                  set('canTime', val.padStart(4, '0'));
+                }} />
+              <span style={{ fontSize: '9px', color: '#6b8fae' }}>분</span>
             </div>
           </div>
 
           {/* CAN+GPS 사용 여부 */}
-          <div style={{ ...rowStyle, border: '1px solid rgba(107,143,174,.2)', borderRadius: '6px', margin: '4px 8px' }}>
+          <div title={t.tipCanGps} style={{ ...rowStyle, border: '1px solid rgba(107,143,174,.2)', borderRadius: '6px', margin: '4px 8px' }}>
             <span style={lblStyle}>{t.canGpsUse}</span>
             <button style={toggleStyle(settings.canGps, settings.canUse && !settings.canGps)}
               onClick={() => {
@@ -1221,19 +1346,33 @@ function DeviceSettingPanel({ device, onClose }) {
             </button>
           </div>
 
-          {/* CAN+GPS 시간 설정 — CAN+GPS ON 시 활성화 */}
-          <div style={{ ...rowStyle, opacity: settings.canGps ? 1 : 0.35 }}>
+          {/* CAN+GPS 시간 설정 */}
+          <div style={{ ...rowStyle, opacity: settings.canGps ? 1 : 0.35 }} title={t.tipCanGpsTime}>
             <span style={lblStyle}>{t.canGpsTime} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.unitMin}</span></span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input style={{ ...inp, width: '80px' }} value={settings.canGpsTime} maxLength={4}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select value={parseInt(settings.canGpsTime) || 0}
                 disabled={!settings.canGps}
-                onChange={e => set('canGpsTime', e.target.value.replace(/\D/g, '').slice(0, 4).padStart(4, '0'))} />
-              <span style={{ fontSize: '10px', color: '#8b5cf6' }}>{t.digits4}</span>
+                onChange={e => { if (e.target.value) set('canGpsTime', String(e.target.value).padStart(4, '0')); }}
+                style={{ ...inp, width: '90px' }}>
+                <option value="0">{t.selectOption}</option>
+                {[1, 5, 10, 30, 60, 120].map(v => <option key={v} value={v}>{v}min</option>)}
+              </select>
+              <input style={{ ...inp, width: '70px', border: `1px solid ${settings.canGps ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.25)'}` }}
+                value={parseInt(settings.canGpsTime) || ''}
+                maxLength={4}
+                placeholder="1~9999"
+                disabled={!settings.canGps}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  if (val === '') { set('canGpsTime', '0000'); return; }
+                  set('canGpsTime', val.padStart(4, '0'));
+                }} />
+              <span style={{ fontSize: '9px', color: '#6b8fae' }}>분</span>
             </div>
           </div>
 
           {/* SOS 사용 여부 */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipSos}>
             <span style={lblStyle}>{t.sosUse}</span>
             <button style={toggleStyle(settings.sosUse)} onClick={() => set('sosUse', !settings.sosUse)}>
               {settings.sosUse ? 'ON' : 'OFF'}
@@ -1241,7 +1380,7 @@ function DeviceSettingPanel({ device, onClose }) {
           </div>
 
           {/* 수신처 */}
-          <div style={rowStyle}>
+          <div style={rowStyle} title={t.tipAddr}>
             <span style={lblStyle}>{t.recipient} <span style={{ fontSize: '9px', color: '#4b6483' }}>{t.recipientUnit}</span></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <input style={{ ...inp, width: '280px' }} value={settings.recipient}
@@ -1277,7 +1416,7 @@ function DeviceSettingPanel({ device, onClose }) {
                 {verData ? gpsLabel(verData.gps) : ''}
               </span>
               <div style={{ display: 'flex', gap: '3px' }}>
-                {[0,1,2,3].map(i => (
+                {[0, 1, 2, 3].map(i => (
                   <div key={i} style={{ width: '6px', height: `${8 + i * 4}px`, borderRadius: '2px', background: verData && parseInt(verData.gps) > i ? '#fbbf24' : 'rgba(255,255,255,.1)', alignSelf: 'flex-end' }} />
                 ))}
               </div>
@@ -1295,7 +1434,7 @@ function DeviceSettingPanel({ device, onClose }) {
                 {verData ? signalLabel(verData.signal) : ''}
               </span>
               <div style={{ display: 'flex', gap: '3px' }}>
-                {[0,1,2,3,4].map(i => (
+                {[0, 1, 2, 3, 4].map(i => (
                   <div key={i} style={{ width: '6px', height: `${6 + i * 4}px`, borderRadius: '2px', background: verData && parseInt(verData.signal) > i ? '#10b981' : 'rgba(255,255,255,.1)', alignSelf: 'flex-end' }} />
                 ))}
               </div>
@@ -1303,7 +1442,17 @@ function DeviceSettingPanel({ device, onClose }) {
           </div>
         </div>
 
-        {/* 커맨드 미리보기 */}
+        {/* 마지막 설정 시간 — status=2(성공)일 때만 표시 */}
+        <div style={{ margin: '0 14px 4px', padding: '6px 12px', background: 'rgba(239,68,68,.05)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace" }}>마지막 설정시간 :</span>
+          <span style={{ fontSize: '10px', color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>
+            {verData && saveStatus === '2'
+              ? `${verData.regDate?.slice(0, 4)}-${verData.regDate?.slice(4, 6)}-${verData.regDate?.slice(6, 8)} ${verData.regDate?.slice(8, 10)}:${verData.regDate?.slice(10, 12)}`
+              : verData
+                ? `${verData.regDate?.slice(0, 4)}-${verData.regDate?.slice(4, 6)}-${verData.regDate?.slice(6, 8)} ${verData.regDate?.slice(8, 10)}:${verData.regDate?.slice(10, 12)} (이전 설정)`
+                : '— VER-Call 후 표시됩니다.'}
+          </span>
+        </div>
         {isChanged() && buildCommand() && (
           <div style={{ margin: '0 14px 8px', padding: '8px 12px', background: 'rgba(0,212,240,.05)', border: '1px solid rgba(0,212,240,.15)', borderRadius: '8px' }}>
             <span style={{ fontSize: '9px', color: '#6b8fae' }}>{t.sendCmd}</span>
@@ -1319,52 +1468,43 @@ function DeviceSettingPanel({ device, onClose }) {
           </button>
           <span style={{ fontSize: '10px', color: '#6b8fae' }}>{t.ackNote}</span>
 
-          {saveStatus === 'waiting' && (
-            <span style={{ fontSize: '11px', color: '#f59e0b' }}>{t.waiting(retryCount, MAX_RETRY)}</span>
-          )}
-          {saveStatus === 'failed' && retryCount < MAX_RETRY && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#ef4444' }}>{t.failed(retryCount, MAX_RETRY)}</span>
-              <button onClick={handleRetry}
-                style={{ padding: '5px 12px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
-                {t.retry}
-              </button>
-            </div>
-          )}
-          {saveStatus === 'failed' && retryCount >= MAX_RETRY && (
-            <span style={{ fontSize: '11px', color: '#ef4444' }}>{t.maxRetry(MAX_RETRY)}</span>
-          )}
-          {saveStatus === 'success' && (
-            <span style={{ fontSize: '11px', color: '#10b981' }}>{t.success}</span>
-          )}
+          {saveStatus && getStatusLabel(saveStatus)}
         </div>
 
         {/* Device Call */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(0,212,240,.1)' }}>
-          <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '700', marginBottom: '8px' }}>
-            {t.deviceCall} <span style={{ fontSize: '9px', color: '#6b8fae', fontWeight: '400' }}>{t.callNote}</span>
+          <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {t.deviceCall}
+            <span style={{ fontSize: '9px', color: '#6b8fae', fontWeight: '400' }}>{t.callNote}</span>
+            {callCountdown > 0 && (
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', fontFamily: "'JetBrains Mono', monospace", background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', padding: '2px 10px' }}>
+                🔒 {callCountdown}s
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[
-              { label: 'CAN-Call', cmd: 'CAN', desc: 'CAN 1회' },
-              { label: 'can-Call', cmd: 'can', desc: 'CAN+GPS' },
-              { label: 'CAR-Call', cmd: 'CAR', desc: 'CAR 1회' },
-              { label: 'UAV-Call', cmd: 'UAV', desc: 'UAV 1회' },
-              { label: 'UAT-Call', cmd: 'UAT', desc: 'UAT 1회' },
-              { label: 'VER-Call', cmd: 'VER', desc: 'VER 호출', highlight: true },
-            ].map(b => (
-              <div key={b.cmd} style={{ textAlign: 'center' }}>
-                <button onClick={() => handleCall(b.cmd)} disabled={callDisabled}
-                  style={{ padding: '6px 14px', borderRadius: '7px', border: `1px solid ${b.highlight ? 'rgba(0,212,240,.5)' : 'rgba(255,255,255,.15)'}`, background: b.highlight ? 'rgba(0,212,240,.12)' : 'rgba(255,255,255,.05)', color: b.highlight ? '#00d4f0' : '#e8f4ff', cursor: callDisabled ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: '700', opacity: callDisabled ? 0.4 : 1 }}>
-                  {b.label}
-                </button>
-                <div style={{ fontSize: '8px', color: '#4b6483', marginTop: '2px' }}>{b.desc}</div>
-              </div>
-            ))}
+              { label: 'CAN-Call', cmd: 'SET=CAN', desc: 'CAN데이터 호출', highlight: false },
+              { label: 'can-Call', cmd: 'SET=can', desc: 'CAN+위치 데이터 호출', highlight: false },
+              { label: '위치호출', cmd: 'SET=UAT', desc: '위치호출 데이터 호출', highlight: false },
+              { label: 'VER-Call', cmd: 'SET=VER', desc: 'VER 호출', highlight: true },
+            ].map(b => {
+              const cs = callStatuses[b.cmd] || '';
+              return (
+                <div key={b.cmd} style={{ textAlign: 'center' }}>
+                  <button onClick={() => handleCall(b.cmd)} disabled={callDisabled}
+                    style={{ padding: '6px 14px', borderRadius: '7px', border: `1px solid ${b.highlight ? 'rgba(0,212,240,.5)' : 'rgba(255,255,255,.15)'}`, background: b.highlight ? 'rgba(0,212,240,.12)' : 'rgba(255,255,255,.05)', color: b.highlight ? '#00d4f0' : '#e8f4ff', cursor: callDisabled ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: '700', opacity: callDisabled ? 0.4 : 1 }}>
+                    {b.label}
+                  </button>
+                  <div style={{ fontSize: '8px', color: '#4b6483', marginTop: '2px' }}>{b.desc}</div>
+                  {cs && <div style={{ marginTop: '2px' }}>{getStatusLabel(cs)}</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -1397,9 +1537,32 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
   const [lastSentSlot, setLastSentSlot] = useState(() => {
     return localStorage.getItem(`${deviceKey}_lastSent`) || null;
   });
-  const [sendStatus, setSendStatus] = useState(''); // '', 'waiting', 'success', 'failed'
+  const [sendStatus, setSendStatus] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [sendLocked, setSendLocked] = useState(false);
+  const geoPollingRef = useRef(null);
+
+  const startGeoPolling = (idxVal) => {
+    let count = 0;
+    const timer = setInterval(async () => {
+      count++;
+      if (count > 60) { clearInterval(timer); setSendStatus('3'); return; }
+      try {
+        const res = await api.get(`/location/command/status/${idxVal}`);
+        const st = res.data?.status;
+        if (st === '1') setSendStatus('1');
+        if (st === '2') {
+          clearInterval(timer);
+          setSendStatus('2');
+          // 성공시에만 lastSentSlot 업데이트 → 노란색 표시
+          setLastSentSlot(activeGeo);
+          localStorage.setItem(`${deviceKey}_lastSent`, activeGeo);
+        }
+        if (st === '3') { clearInterval(timer); setSendStatus('3'); }
+      } catch { /* 무시 */ }
+    }, 5000);
+    return timer;
+  };
   const [intersectError, setIntersectError] = useState(false);
   const MAX_RETRY = 3;
   const MAX_POINTS = 8;
@@ -1564,18 +1727,23 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
   };
 
   const doSend = async () => {
-    const cmd = buildCommand();
+    if (!activeGeo || !savedSlots[activeGeo]) { alert('먼저 슬롯을 저장해주세요.'); return; }
+    const cmd = savedSlots[activeGeo] ? buildCommand() : null;
     if (!cmd) { alert('최소 3개 좌표가 필요합니다.'); return; }
-    setSendStatus('waiting');
+    setSendStatus('0');
     try {
-      await api.post('/location/command', { imei: selectedDevice?.imei, text: cmd, eventcode: '3' });
-      setLastSentSlot(activeGeo);
-      localStorage.setItem(`${deviceKey}_lastSent`, activeGeo);
+      const res = await api.post('/location/command', {
+        imei: selectedDevice?.imei,
+        text: cmd,
+        eventcode: '3',
+        title: activeGeo,
+      });
       setSendLocked(true);
-      setTimeout(() => setSendLocked(false), 120000); // 2분 잠금
-      setTimeout(() => { setSendStatus(prev => prev === 'waiting' ? 'failed' : prev); }, 600000);
-    } catch (_) {
-      setSendStatus('failed');
+      setTimeout(() => setSendLocked(false), 120000);
+      clearInterval(geoPollingRef.current);
+      geoPollingRef.current = startGeoPolling(res.data?.idx);
+    } catch {
+      setSendStatus('3');
     }
   };
 
@@ -1603,13 +1771,14 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
     if (n === 1440) return `24${t.hour}`;
     return `${n}${t.min}`;
   };
-  const INTERVAL_OPTIONS = ['S001','S005','S010','S030','S060','S120','S240','S480','S960','S1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
-  const INTERVAL_T_OPTIONS = ['T001','T005','T010','T030','T060','T120','T240','T480','T960','T1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
+  const INTERVAL_OPTIONS = ['S001', 'S005', 'S010', 'S030', 'S060', 'S120', 'S240', 'S480', 'S960', 'S1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
+  const INTERVAL_T_OPTIONS = ['T001', 'T005', 'T010', 'T030', 'T060', 'T120', 'T240', 'T480', 'T960', 'T1440'].map(v => ({ value: v, label: `${v} — ${intervalLabel(v)}` }));
 
+  // lastSentSlot은 status=2(성공)시에만 설정됨
   const slotBorder = (g) => {
-    if (g === lastSentSlot) return '2px solid #fbbf24';
-    if (savedSlots[g]) return '2px solid #ef4444';
-    return '1px solid rgba(0,212,240,.2)';
+    if (g === lastSentSlot) return '2px solid #fbbf24'; // 성공 → 노란색
+    if (savedSlots[g]) return '2px solid #ef4444';     // 저장됨 → 빨간색
+    return '1px solid rgba(0,212,240,.2)';              // 빈 슬롯
   };
   const slotBg = (g) => {
     if (g === activeGeo) return 'rgba(0,212,240,.15)';
@@ -1722,10 +1891,15 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
               <div style={{ fontSize: '10px', color: '#00d4f0', fontWeight: '700', marginBottom: '8px', letterSpacing: '1px' }}>{t.geoSlot}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                {['GEO-1','GEO-2','GEO-3','GEO-4','GEO-5'].map(g => (
+                {['GEO-1', 'GEO-2', 'GEO-3', 'GEO-4', 'GEO-5'].map(g => (
                   <button key={g} onClick={() => {
                     setActiveGeo(activeGeo === g ? null : g);
-                    if (savedSlots[g]) setPoints(savedSlots[g].points);
+                    if (savedSlots[g]) {
+                      setPoints(savedSlots[g].points);
+                      setMode(savedSlots[g].mode || 'DEF1');
+                    } else {
+                      setPoints([]); // 빈 슬롯 클릭시 지도 초기화
+                    }
                   }}
                     style={{ padding: '5px 10px', borderRadius: '6px', border: slotBorder(g), background: slotBg(g), color: activeGeo === g ? '#00d4f0' : savedSlots[g] ? '#ef4444' : '#6b8fae', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
                     {g}
@@ -1769,28 +1943,33 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
 
             {/* 전송 상태 */}
             <div style={{ padding: '14px', borderBottom: '1px solid rgba(0,212,240,.08)' }}>
-              {sendStatus === 'waiting' && (
+              {sendStatus === '0' && (
                 <div style={{ padding: '8px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: '6px', fontSize: '10px', color: '#f59e0b' }}>
-                  {t.geoWaiting(retryCount, MAX_RETRY)}
+                  ⏳ 대기 중...
                 </div>
               )}
-              {sendStatus === 'failed' && retryCount < MAX_RETRY && (
+              {sendStatus === '1' && (
+                <div style={{ padding: '8px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '6px', fontSize: '10px', color: '#00d4f0' }}>
+                  📡 GW 접수 성공
+                </div>
+              )}
+              {sendStatus === '2' && (
+                <div style={{ padding: '8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '6px', fontSize: '10px', color: '#10b981' }}>
+                  ✅ 전송 성공
+                </div>
+              )}
+              {sendStatus === '3' && retryCount < MAX_RETRY && (
                 <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{t.geoFailed(retryCount, MAX_RETRY)}</span>
+                  <span>❌ 실패 ({retryCount}/{MAX_RETRY})</span>
                   <button onClick={handleRetry} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '5px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>{t.geoRetry}</button>
                 </div>
               )}
-              {sendStatus === 'failed' && retryCount >= MAX_RETRY && (
+              {sendStatus === '3' && retryCount >= MAX_RETRY && (
                 <div style={{ padding: '8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '6px', fontSize: '10px', color: '#ef4444' }}>
-                  {t.geoMaxRetry(MAX_RETRY)}
+                  ❌ 최대 재시도 초과 ({MAX_RETRY}회)
                 </div>
               )}
-              {sendStatus === 'success' && (
-                <div style={{ padding: '8px', background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: '6px', fontSize: '10px', color: '#10b981' }}>
-                  {t.geoSuccess}
-                </div>
-              )}
-              {sendLocked && sendStatus !== 'waiting' && (
+              {sendLocked && sendStatus !== '0' && (
                 <div style={{ marginTop: '6px', fontSize: '9px', color: '#6b8fae' }}>{t.geoLocked}</div>
               )}
             </div>
@@ -1801,10 +1980,16 @@ function GeoFencePanel({ devices, selectedDevice, onClose }) {
                 style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(0,212,240,.3)', background: 'rgba(0,212,240,.1)', color: '#00d4f0', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>
                 {t.geoSaveBtn}
               </button>
-              <button onClick={handleSend} disabled={sendLocked || retryCount >= MAX_RETRY}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.07)' : 'linear-gradient(135deg,#10b981,#059669)', color: sendLocked || retryCount >= MAX_RETRY ? 'rgba(255,255,255,.2)' : '#fff', fontWeight: '700', fontSize: '12px', cursor: sendLocked || retryCount >= MAX_RETRY ? 'not-allowed' : 'pointer' }}>
-                {t.geoSendBtn}
-              </button>
+              {(() => {
+                const canSend = !sendLocked && retryCount < MAX_RETRY && activeGeo && savedSlots[activeGeo];
+                return (
+                  <button onClick={handleSend} disabled={!canSend}
+                    title={!activeGeo ? '슬롯을 선택하세요' : !savedSlots[activeGeo] ? '먼저 저장해주세요' : ''}
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: canSend ? 'linear-gradient(135deg,#10b981,#059669)' : 'rgba(255,255,255,.07)', color: canSend ? '#fff' : 'rgba(255,255,255,.2)', fontWeight: '700', fontSize: '12px', cursor: canSend ? 'pointer' : 'not-allowed' }}>
+                    {t.geoSendBtn}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

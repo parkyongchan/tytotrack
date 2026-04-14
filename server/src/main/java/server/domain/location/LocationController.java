@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import server.domain.user.UserRepository;
+import server.security.JwtUtil;
 
 @RestController
 @RequestMapping("/api/location")
@@ -16,6 +18,8 @@ public class LocationController {
 
     private final SndEventListRepository sndRepo;
     private final RcvEventListRepository rcvRepo;
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     // 전체 장비 최신 위치 조회
     @GetMapping("/latest")
@@ -62,17 +66,34 @@ public class LocationController {
         }
     }
 
-    // 장비 명령 전송 (DB → SWITCH)
+    /// 장비 명령 전송 (DB → SWITCH)
     @PostMapping("/command")
-    public ResponseEntity<?> sendCommand(@RequestBody Map<String, String> req) {
+    public ResponseEntity<?> sendCommand(
+            @RequestBody Map<String, String> req,
+            @RequestHeader("Authorization") String authHeader) {
         String now = LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+
+        // JWT에서 userId 추출
+        Long userId = null;
+        String loginId = null;
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            loginId = jwtUtil.getLoginId(token);
+            userId = userRepository.findByLoginId(loginId)
+                    .map(u -> u.getId()).orElse(null);
+        } catch (Exception ignored) {}
+
+        String msgId = (loginId != null ? loginId : "unknown") + now;
 
         RcvEventList cmd = RcvEventList.builder()
                 .imei(req.get("imei"))
                 .text(req.get("text"))
+                .eventcode(req.get("eventcode"))
                 .status("0")
                 .regDate(now)
+                .userId(userId)
+                .msgId(msgId)
                 .build();
 
         rcvRepo.save(cmd);
@@ -92,6 +113,14 @@ public class LocationController {
             @RequestBody Map<String, Object> req,
             @RequestHeader("Authorization") String authHeader) {
         String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        Long userId = null;
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            String loginId = jwtUtil.getLoginId(token);
+            userId = userRepository.findByLoginId(loginId)
+                    .map(u -> u.getId()).orElse(null);
+        } catch (Exception ignored) {}
+
         RcvEventList geo = RcvEventList.builder()
                 .imei((String) req.get("imei"))
                 .eventcode("3")
@@ -99,6 +128,7 @@ public class LocationController {
                 .text((String) req.get("command"))
                 .status("0")
                 .regDate(now)
+                .userId(userId)
                 .build();
         rcvRepo.save(geo);
         return ResponseEntity.ok(Map.of("message", "저장 완료", "idx", geo.getIdx()));
@@ -106,8 +136,17 @@ public class LocationController {
 
 
 
-    // 대기중인 명령 조회
-    @GetMapping("/command/pending")
+    // 명령 상태 단건 조회
+    @GetMapping("/command/status/{idx}")
+    public ResponseEntity<?> getCommandStatus(@PathVariable Long idx) {
+        return rcvRepo.findById(idx)
+                .map(cmd -> ResponseEntity.ok(Map.of(
+                        "idx", cmd.getIdx(),
+                        "status", cmd.getStatus() != null ? cmd.getStatus() : "0",
+                        "msgId", cmd.getMsgId() != null ? cmd.getMsgId() : ""
+                )))
+                .orElse(ResponseEntity.notFound().build());
+    }
     public ResponseEntity<?> getPendingCommands() {
         List<RcvEventList> list = rcvRepo.findByStatusOrderByIdxAsc("0");
         return ResponseEntity.ok(list);

@@ -29,17 +29,14 @@ public class RcvEventList {
     @Column(name = "text", columnDefinition = "TEXT")
     private String text;
 
-    // 상태: 0=대기, 1=성공, 2=실패
+    /// 상태: 0=대기, 1=GW접수성공, 2=성공, 3=실패
     @Column(name = "status", length = 5)
+    @Builder.Default
     private String status = "0";
 
-    // 이리듐 GW MT Confirmation 상태코드
-    @Column(name = "mt_status", length = 10)
-    private String mtStatus;
-
-    // 이리듐 GW Auto ID Reference
-    @Column(name = "auto_id", length = 20)
-    private String autoId;
+    // 메시지 고유 ID (loginId + yyyyMMddHHmmss)
+    @Column(name = "msg_id", length = 30)
+    private String msgId;
 
     // 재전송 횟수
     @Column(name = "retry_count")
@@ -49,4 +46,8 @@ public class RcvEventList {
     // 등록 시간
     @Column(name = "reg_date", length = 20)
     private String regDate;
+
+    // 전송한 로그인 사용자 ID
+    @Column(name = "user_id")
+    private Long userId;
 }
