@@ -9,6 +9,12 @@ import TextViewData from './TextViewData';
 import DevicesPage from './DevicesPage';
 import ShareSettings from './ShareSettings';
 import TrackViewPopup from './TrackViewPopup';
+import {
+  IconMenu, IconSatellite, IconMap, IconChat, IconPin, IconData,
+  IconSettings, IconShare, IconUser, IconRefresh, IconSearch,
+  IconConstruct, IconMessage, IconLogout, IconSOS
+} from '../components/Icons';
+import LogoSvg from '../assets/file.svg';
 
 export default function DashboardPage({ user, onLogout }) {
   const [devices, setDevices] = useState([]);
@@ -19,7 +25,8 @@ export default function DashboardPage({ user, onLogout }) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mapPoints, setMapPoints] = useState([]);
+ const [mapPoints, setMapPoints] = useState([]);
+  const [mapSearched, setMapSearched] = useState(false);
   const [trackDevice, setTrackDevice] = useState(null);
 
   const fetchDevices = useCallback(async () => {
@@ -73,7 +80,17 @@ export default function DashboardPage({ user, onLogout }) {
     return d;
   });
 
-  const sosCount = devicesWithLocation.filter(d => d.eventcode === '4').length;
+  // SOS: 최신 위치가 SOS이고, 24시간 이내인 것만 카운트
+  const now = new Date();
+  const sosCount = devicesWithLocation.filter(d => {
+    if (d.eventcode !== '4') return false;
+    if (!d.lastUpdate || d.lastUpdate.length < 12) return false;
+    const reg = d.lastUpdate;
+    const regDate = new Date(
+      `${reg.slice(0,4)}-${reg.slice(4,6)}-${reg.slice(6,8)}T${reg.slice(8,10)}:${reg.slice(10,12)}:00`
+    );
+    return (now - regDate) <= 24 * 60 * 60 * 1000;
+  }).length;
   const [unreadMsg, setUnreadMsg] = useState(0);
   const [sysStatus, setSysStatus] = useState({ Switch: 'ok', Satellite: 'ok', IMT: 'ok' });
 
@@ -106,13 +123,13 @@ export default function DashboardPage({ user, onLogout }) {
   };
   const ml = MENU_LABELS[lang] || MENU_LABELS.ko;
   const menuItems = [
-    { id: 'dash', icon: '📡', label: ml.dash, badge: todayLocCount },
-    { id: 'chat', icon: '💬', label: ml.chat, badge: unreadMsg },
-    { id: 'tvloc', icon: '📍', label: ml.tvloc },
-    { id: 'tvdata', icon: '📊', label: ml.tvdata },
-    { id: 'devices', icon: '⚙️', label: ml.devices },
-    { id: 'share', icon: '🔗', label: ml.share },
-    { id: 'users', icon: '👤', label: ml.users },
+    { id: 'dash', icon: <IconSatellite size={17} />, label: ml.dash, badge: todayLocCount },
+    { id: 'chat', icon: <IconChat size={17} />, label: ml.chat, badge: unreadMsg },
+    { id: 'tvloc', icon: <IconPin size={17} />, label: ml.tvloc },
+    { id: 'tvdata', icon: <IconData size={17} />, label: ml.tvdata },
+    { id: 'devices', icon: <IconSettings size={17} />, label: ml.devices },
+    { id: 'share', icon: <IconShare size={17} />, label: ml.share },
+    { id: 'users', icon: <IconUser size={17} />, label: ml.users },
   ];
   // 오늘 위치정보 배지
   useEffect(() => {
@@ -182,13 +199,12 @@ export default function DashboardPage({ user, onLogout }) {
           else setSidebarCollapsed(p => !p);
         }}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', background: 'rgba(0,212,240,.1)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '9px', cursor: 'pointer', flexShrink: 0 }}>
-          <span style={{ fontSize: '18px' }}>☰</span>
+          <IconMenu size={18} color="#00d4f0" />
         </button>
 
         {/* 로고 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg,#00d4f0,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>🛰️</div>
-          <span style={{ fontFamily: "'Orbitron', monospace", fontWeight: '700', letterSpacing: '2px', color: '#fff', fontSize: '13px' }}>TYTO<span style={{ color: '#00d4f0' }}>TRACK</span></span>
+          <img src={LogoSvg} alt="TytoTrack" style={{ height: '25px', width: 'auto' }} />
         </div>
 
         <div style={{ flex: 1 }} />
@@ -230,8 +246,9 @@ export default function DashboardPage({ user, onLogout }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '8px', padding: '4px 12px', flexShrink: 0 }}>
           <span style={{ fontSize: '11px', color: 'rgba(232,244,255,.7)' }} className="pc-only">{user.name}</span>
           <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }} className="pc-only">{getGmtLabel()}</span>
-          <button onClick={onLogout} style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: '700', color: '#ef4444', cursor: 'pointer' }}>
-            {bl.logout}
+          <button onClick={onLogout} style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', padding: '5px 10px', fontSize: '10px', fontWeight: '700', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <IconLogout size={13} color="#ef4444" />
+            <span className="pc-only">{bl.logout}</span>
           </button>
         </div>
       </header>
@@ -320,18 +337,18 @@ export default function DashboardPage({ user, onLogout }) {
           {activePage === 'dash' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'min(330px, 36%) 1fr', gridTemplateRows: '1fr 160px', gap: '8px', padding: '8px', flex: 1, overflow: 'hidden' }}
               className="dash-grid" id="dash-grid-wrap">
-              <DevicePanel devices={devicesWithLocation} allDevices={allDevices} onRefresh={() => { fetchDevices(); fetchLocations(); }} onNavigate={setActivePage} onMapDataChange={setMapPoints} />
+              <DevicePanel devices={devicesWithLocation} allDevices={allDevices} onRefresh={() => { fetchDevices(); fetchLocations(); }} onNavigate={setActivePage} onMapDataChange={(pts) => { setMapPoints(pts); setMapSearched(true); }} />
 
               {/* 지도 */}
               <div className="dash-map" style={{ background: 'rgba(13,26,46,.85)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden' }}>
-                <MapView devices={devicesWithLocation} allDevices={allDevices} mapPoints={mapPoints} onOpenTrack={setTrackDevice} />
+                <MapView devices={devicesWithLocation} allDevices={allDevices} mapPoints={mapPoints} mapSearched={mapSearched} onOpenTrack={setTrackDevice} />
               </div>
 
               {/* 이벤트 로그 */}
               <div className="dash-event" style={{ background: 'rgba(14,26,46,.97)', border: '1px solid rgba(0,212,240,.18)', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ padding: '7px 13px', borderBottom: '1px solid rgba(0,212,240,.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>EVENT LOG</span>
-                  <span style={{ fontSize: '10px', color: '#6b8fae' }}>{locations.length}건</span>
+                  <span style={{ fontSize: '10px', color: '#6b8fae' }}>{locations.filter(l => l.eventcode === '9').length}건</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '50px 120px 100px 1fr 60px', padding: '3px 13px', background: 'rgba(0,0,0,.2)', flexShrink: 0 }}>
                   {['Type', 'IMEI', 'Alias', 'Detail', 'Time'].map(h => (
@@ -341,7 +358,7 @@ export default function DashboardPage({ user, onLogout }) {
                 <div style={{ overflowY: 'auto', flex: 1 }}>
                   {locations.length === 0 ? (
                     <div style={{ padding: '14px', textAlign: 'center', color: '#6b8fae', fontSize: '12px' }}>이벤트 없음</div>
-                  ) : locations.slice(0, 20).map((l, i) => {
+                  ) : locations.filter(l => l.eventcode === '9').slice(0, 20).map((l, i) => {
                     const isSOS = l.eventcode === '4';
                     const typeColor = isSOS ? '#ef4444' : '#60a5fa';
                     const typeBg = isSOS ? 'rgba(239,68,68,.15)' : 'rgba(59,130,246,.15)';
@@ -399,7 +416,9 @@ export default function DashboardPage({ user, onLogout }) {
           {activePage !== 'dash' && activePage !== 'devices' && activePage !== 'tvloc' && activePage !== 'users' && activePage !== 'chat' && activePage !== 'tvdata' && activePage !== 'share' && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#6b8fae' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚧</div>
+                <div style={{ marginBottom: '16px', opacity: 0.5 }}>
+                  <IconConstruct size={48} color="#6b8fae" />
+                </div>
                 <div style={{ fontSize: '16px', fontWeight: '700' }}>개발 중...</div>
                 <div style={{ fontSize: '13px', marginTop: '8px' }}>{menuItems.find(m => m.id === activePage)?.label}</div>
               </div>
@@ -652,7 +671,9 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
         <div style={{ padding: '9px 13px', borderBottom: '1px solid rgba(0,212,240,.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700', letterSpacing: '2px', color: '#00d4f0' }}>RECEIVED DATA LIST</span>
           <div style={{ display: 'flex', gap: '6px' }}>
-            <button onClick={fetchAllData} style={{ fontSize: '12px', background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer' }}>↻</button>
+            <button onClick={fetchAllData} style={{ background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <IconRefresh size={14} color="#00d4f0" />
+            </button>
           </div>
         </div>
 
@@ -695,13 +716,23 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
             { ko: '30일', en: '30d', ja: '30日', days: 30 },
           ].map((q, i) => (
             <button key={i} onClick={async () => {
-              const now = new Date();
-              const start = new Date(now);
-              if (q.hours) start.setHours(start.getHours() - q.hours);
-              if (q.days) start.setDate(start.getDate() - q.days);
-              const fmt = d => d.toISOString().slice(0, 16);
-              const s = fmt(start);
-              const e = fmt(now);
+              const gmtZone = parseFloat(localStorage.getItem('gmtZone') ?? '9');
+              const offsetMs = gmtZone * 3600 * 1000;
+              const nowUtc = new Date();
+              const localNow = new Date(nowUtc.getTime() + offsetMs);
+              const localStart = new Date(localNow.getTime());
+              if (q.hours) localStart.setHours(localStart.getHours() - q.hours);
+              if (q.days) localStart.setDate(localStart.getDate() - q.days);
+              const fmt = d => {
+                const y = d.getUTCFullYear();
+                const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(d.getUTCDate()).padStart(2, '0');
+                const h = String(d.getUTCHours()).padStart(2, '0');
+                const m = String(d.getUTCMinutes()).padStart(2, '0');
+                return `${y}-${mo}-${day}T${h}:${m}`;
+              };
+              const s = fmt(localStart);
+              const e = fmt(localNow);
               setStartDate(s);
               setEndDate(e);
               // 직접 API 호출
@@ -730,9 +761,14 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
 
         {/* 검색 */}
         <div style={{ padding: '6px 13px', borderBottom: '1px solid rgba(0,212,240,.1)' }}>
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="🔍 IMEI / Alias"
-            style={{ width: '100%', padding: '6px 10px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '7px', color: '#fff', fontSize: '11px', outline: 'none', boxSizing: 'border-box' }} />
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <IconSearch size={12} color="#6b8fae" />
+            </span>
+            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+              placeholder="IMEI / Alias"
+              style={{ width: '100%', padding: '6px 10px 6px 26px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '7px', color: '#fff', fontSize: '11px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
         </div>
 
         {/* 탭 */}
@@ -782,8 +818,9 @@ function DevicePanel({ devices, allDevices = [], onRefresh, onNavigate, onMapDat
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}>
                   <span style={{ color: '#4b6483', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px', fontSize: '11px' }}>{d.imei}</span>
                   {isMsg ? (
-                    <span style={{ color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      💬 {(d.memo || d.title || '')?.slice(0, 10)}
+                    <span style={{ color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <IconMessage size={10} color="#10b981" />
+                      {(d.memo || d.title || '')?.slice(0, 10)}
                     </span>
                   ) : isShort ? (
                     <span style={{ color: '#a78bfa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>

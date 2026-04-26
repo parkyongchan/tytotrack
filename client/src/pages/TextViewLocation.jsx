@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosConfig';
 import { formatDateWithGmt, toSearchDate } from '../utils/dateUtils';
+import { IconTrash, IconSave, IconSearch } from '../components/Icons';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
 const getLang = () => localStorage.getItem('lang') || 'ko';
@@ -75,15 +76,25 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
   }, [devices, selectedImei]);
 
   const getPeriodRange = (p) => {
-    const now = new Date();
-    const start = new Date(now);
-    if (p === '24시') start.setHours(start.getHours() - 24);
-    else if (p === '48시') start.setHours(start.getHours() - 48);
-    else if (p === '3일') start.setDate(start.getDate() - 3);
-    else if (p === '7일') start.setDate(start.getDate() - 7);
-    else if (p === '30일') start.setDate(start.getDate() - 30);
-    const fmt = d => d.toISOString().replace('T', '').replace(/-|:/g, '').slice(0, 12);
-    return { start: fmt(start) + '00', end: fmt(now) + '99' };
+    const gmtZone = parseFloat(localStorage.getItem('gmtZone') ?? '9');
+    const offsetMs = gmtZone * 3600 * 1000;
+    const nowUtc = new Date();
+    const localNow = new Date(nowUtc.getTime() + offsetMs);
+    const localStart = new Date(localNow.getTime());
+    if (p === '24시') localStart.setHours(localStart.getHours() - 24);
+    else if (p === '48시') localStart.setHours(localStart.getHours() - 48);
+    else if (p === '3일') localStart.setDate(localStart.getDate() - 3);
+    else if (p === '7일') localStart.setDate(localStart.getDate() - 7);
+    else if (p === '30일') localStart.setDate(localStart.getDate() - 30);
+    const fmt = d => {
+      const y = d.getUTCFullYear();
+      const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const h = String(d.getUTCHours()).padStart(2, '0');
+      const m = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${y}${mo}${day}${h}${m}`;
+    };
+    return { start: fmt(localStart) + '00', end: fmt(localNow) + '99' };
   };
 
   useEffect(() => {
@@ -276,13 +287,19 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
           {isSuperAdmin && checkedIds.length > 0 && (
             <button onClick={handleBulkDelete}
-              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-              🗑 {t.bulkDelete} ({checkedIds.length})
+              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <IconTrash size={14} color="#ef4444" /> {t.bulkDelete} ({checkedIds.length})
             </button>
           )}
-          <button onClick={downloadCSV} style={btnStyle('#10b981')}>↓ CSV</button>
-          <button onClick={downloadKML} style={btnStyle('#3b82f6')}>↓ KML</button>
-          <button onClick={downloadGPX} style={btnStyle('#8b5cf6')}>↓ GPX</button>
+          <button onClick={downloadCSV} style={{ ...btnStyle('#10b981'), display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <IconSave size={12} color="#10b981" /> CSV
+          </button>
+          <button onClick={downloadKML} style={{ ...btnStyle('#3b82f6'), display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <IconSave size={12} color="#3b82f6" /> KML
+          </button>
+          <button onClick={downloadGPX} style={{ ...btnStyle('#8b5cf6'), display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <IconSave size={12} color="#8b5cf6" /> GPX
+          </button>
         </div>
       </div>
 
@@ -343,7 +360,9 @@ export default function TextViewLocation({ devices, allDevices = [] }) {
                     {isSuperAdmin && (
                       <td style={{ padding: '6px 10px' }}>
                         <button onClick={() => handleDelete(row.idx)}
-                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px' }}>{t.deleteBtn}</button>
+                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <IconTrash size={10} color="#ef4444" /> {t.deleteBtn}
+                        </button>
                       </td>
                     )}
                   </tr>

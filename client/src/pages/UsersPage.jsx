@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
+import { IconSearch, IconTrash, IconUser, IconRefresh } from '../components/Icons';
 
 const lang = localStorage.getItem('lang') || 'ko';
 
@@ -248,7 +249,9 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
 
         {/* 검색창 */}
         <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#6b8fae' }}>🔍</span>
+          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex' }}>
+            <IconSearch size={13} color="#6b8fae" />
+          </span>
           <input
             value={searchKeyword}
             onChange={e => { setSearchKeyword(e.target.value); setPage(1); }}
@@ -268,8 +271,8 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
         {/* 선택삭제 */}
         {myRole !== 'REVIEWER' && checkedIds.length > 0 && (
           <button onClick={handleBulkDelete}
-            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-            🗑 선택삭제 ({checkedIds.length})
+            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <IconTrash size={12} color="#ef4444" /> 선택삭제 ({checkedIds.length})
           </button>
         )}
 
@@ -299,7 +302,9 @@ export default function UsersPage({ user, devices: propDevices = [] }) {
             {/* 모달 헤더 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0' }}>
-                👤 {editUser ? t.editTitle : t.addTitle}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <IconUser size={13} color="#00d4f0" /> {editUser ? t.editTitle : t.addTitle}
+              </span>
               </span>
               <button onClick={closeForm} style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>

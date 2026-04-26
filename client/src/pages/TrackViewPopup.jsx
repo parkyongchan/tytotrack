@@ -17,30 +17,31 @@ import { fromLonLat } from 'ol/proj';
 import { formatDateWithGmt } from '../utils/dateUtils';
 import * as satellite from 'satellite.js';
 import { Style, Circle, Fill, Stroke } from 'ol/style';
+import { IconSatellite, IconPlay, IconXCircle, IconMapPin, IconSOS } from '../components/Icons';
 
 
 export default function TrackViewPopup({ device, imei, alias, onClose, defaultPeriod = '3일', devices = [] }) {
     const uiLang = localStorage.getItem('lang') || 'ko';
     const TL = {
       ko: {
-        close: '✕ 닫기', period: '기간', direct: '직접 설정', apply: '적용',
-        rewind: '⏮ REWIND', prev: '◀◀ 이전', play: '▶ 재생', pause: '⏸ 끄기', next: '다음 ▶▶',
+        close: '닫기', period: '기간', direct: '직접 설정', apply: '적용',
+        rewind: 'REWIND', prev: '이전', play: '재생', pause: '끄기', next: '다음',
         speed: '속도', total: '건', trackList: 'TRACK LIST',
         loading: '로딩 중...', nodata: '데이터 없음',
-        autoTrack: '🟢 자동추적 (최근접 위성)', manualSelect: '🟡 수동선택',
+        autoTrack: '자동추적 (최근접 위성)', manualSelect: '수동선택',
         periods: { '24시': '24시', '48시': '48시', '3일': '3일', '7일': '7일', '30일': '30일' },
       },
       en: {
-        close: '✕ Close', period: 'Period', direct: 'Custom', apply: 'Apply',
-        rewind: '⏮ REWIND', prev: '◀◀ Prev', play: '▶ Play', pause: '⏸ Pause', next: 'Next ▶▶',
+        close: 'Close', period: 'Period', direct: 'Custom', apply: 'Apply',
+        rewind: 'REWIND', prev: 'Prev', play: 'Play', pause: 'Pause', next: 'Next',
         speed: 'Speed', total: 'rows', trackList: 'TRACK LIST',
         loading: 'Loading...', nodata: 'No data',
-        autoTrack: '🟢 Auto Track (Nearest)', manualSelect: '🟡 Manual',
+        autoTrack: 'Auto Track (Nearest)', manualSelect: 'Manual',
         periods: { '24시': '24h', '48시': '48h', '3일': '3d', '7일': '7d', '30일': '30d' },
       },
       ja: {
-        close: '✕ 閉じる', period: '期間', direct: '直接設定', apply: '適用',
-        rewind: '⏮ 巻戻し', prev: '◀◀ 前へ', play: '▶ 再生', pause: '⏸ 停止', next: '次へ ▶▶',
+        close: '閉じる', period: '期間', direct: '直接設定', apply: '適用',
+        rewind: '巻戻し', prev: '前へ', play: '再生', pause: '停止', next: '次へ',
         speed: '速度', total: '件', trackList: 'トラックリスト',
         loading: '読込中...', nodata: 'データなし',
         autoTrack: '🟢 自動追跡 (最近衛星)', manualSelect: '🟡 手動選択',
@@ -114,15 +115,25 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
 
     // 기간 계산
     const getPeriodDates = (p) => {
-        const now = new Date();
-        const start = new Date(now);
-        if (p === '24시') start.setHours(start.getHours() - 24);
-        else if (p === '48시') start.setHours(start.getHours() - 48);
-        else if (p === '3일') start.setDate(start.getDate() - 3);
-        else if (p === '7일') start.setDate(start.getDate() - 7);
-        else if (p === '30일') start.setDate(start.getDate() - 30);
-        const fmt = d => d.toISOString().replace('T', '').replace(/-|:/g, '').slice(0, 12);
-        return { start: fmt(start), end: fmt(now) };
+        const gmtZone = parseFloat(localStorage.getItem('gmtZone') ?? '9');
+        const offsetMs = gmtZone * 3600 * 1000;
+        const nowUtc = new Date();
+        const localNow = new Date(nowUtc.getTime() + offsetMs);
+        const localStart = new Date(localNow.getTime());
+        if (p === '24시') localStart.setHours(localStart.getHours() - 24);
+        else if (p === '48시') localStart.setHours(localStart.getHours() - 48);
+        else if (p === '3일') localStart.setDate(localStart.getDate() - 3);
+        else if (p === '7일') localStart.setDate(localStart.getDate() - 7);
+        else if (p === '30일') localStart.setDate(localStart.getDate() - 30);
+        const fmt = d => {
+            const y = d.getUTCFullYear();
+            const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const h = String(d.getUTCHours()).padStart(2, '0');
+            const m = String(d.getUTCMinutes()).padStart(2, '0');
+            return `${y}${mo}${day}${h}${m}`;
+        };
+        return { start: fmt(localStart), end: fmt(localNow) };
     };
 
     // 데이터 조회
@@ -1115,15 +1126,17 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
 
             {/* ── 상단 헤더 ── */}
             <div className="tvp-header" style={{ height: '48px', background: 'rgba(13,22,40,.98)', borderBottom: '1px solid rgba(0,212,240,.2)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '12px', flexShrink: 0, zIndex: 10 }}>
-                <div style={{ width: '26px', height: '26px', background: 'linear-gradient(135deg,#00d4f0,#3b82f6)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>🛰️</div>
+                <div style={{ width: '26px', height: '26px', background: 'linear-gradient(135deg,#00d4f0,#3b82f6)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconSatellite size={14} color="#fff" />
+                </div>
                 <span style={{ fontFamily: "'Orbitron', monospace", fontSize: '10px', fontWeight: '700', letterSpacing: '2px', color: '#fff' }}>TYTO<span style={{ color: '#00d4f0' }}>TRACK</span></span>
                 <div style={{ width: '1px', height: '18px', background: 'rgba(0,212,240,.2)' }} />
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
                     {device?.eventcode === '4' ? 'SOS' : 'TRACK'} — {alias}
                 </span>
                 <span style={{ fontSize: '10px', color: '#6b8fae', fontFamily: "'JetBrains Mono', monospace" }}>{imei}</span>
-                <button onClick={onClose} style={{ marginLeft: 'auto', padding: '5px 14px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '7px', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
-                    {t.close}
+                <button onClick={onClose} style={{ marginLeft: 'auto', padding: '5px 14px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '7px', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <IconXCircle size={13} color="#ef4444" /> {t.close}
                 </button>
             </div>
 
@@ -1157,22 +1170,23 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                 {/* 재생 컨트롤 */}
                 <button onClick={() => { setPlayIdx(filteredData.length - 1); setPlaying(false); }}
                     style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>
-                    {t.rewind}
+                    ⏮ {t.rewind}
                 </button>
                 <button onClick={() => setPlayIdx(p => Math.max(0, p - 1))}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>{t.prev}</button>
+                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>
+                    ◀ {t.prev}
+                </button>
                 <button onClick={() => {
-                    if (!playing) {
-                        // 재생 시작 시 항상 처음(가장 오래된)부터
-                        setPlayIdx(filteredData.length - 1);
-                    }
+                    if (!playing) { setPlayIdx(filteredData.length - 1); }
                     setPlaying(p => !p);
                 }}
                     style={{ padding: '4px 12px', background: playing ? 'rgba(239,68,68,.12)' : 'rgba(16,185,129,.12)', border: `1px solid ${playing ? 'rgba(239,68,68,.3)' : 'rgba(16,185,129,.3)'}`, borderRadius: '6px', color: playing ? '#ef4444' : '#10b981', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
-                    {playing ? t.pause : t.play}
+                    {playing ? `⏸ ${t.pause}` : `▶ ${t.play}`}
                 </button>
                 <button onClick={() => setPlayIdx(p => Math.min(filteredData.length - 1, p + 1))}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>{t.next}</button>
+                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '6px', color: '#6b8fae', fontSize: '10px', cursor: 'pointer' }}>
+                    {t.next} ▶
+                </button>
 
                 <div style={{ width: '1px', height: '20px', background: 'rgba(0,212,240,.2)' }} />
 
@@ -1277,28 +1291,44 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                         const uiLang = localStorage.getItem('lang') || 'ko';
                         const OVERLAY_LABELS = {
                           ko: {
-                            weather: '🌤️ 날씨예보', rain: '🌧️ 강수', satellite: '🛰️ 위성사진',
-                            seamap: '⚓ 해도', topo: '🏔️ 등고선', earthquake: '🌍 지진',
-                            wildfire: '🔥 산불', wind: '💨 바람', temp: '🌡️ 기온',
-                            typhoon: '🌀 태풍', airspace: '✈️ 항공제한', geofence: '📍 GEO Fence',
-                            otherDevices: '📡 타장비', heatmap: '🔴 이력밀도',
+                            weather: '날씨예보', rain: '강수', satellite: '위성사진',
+                            seamap: '해도', topo: '등고선', earthquake: '지진',
+                            wildfire: '산불', wind: '바람', temp: '기온',
+                            typhoon: '태풍', airspace: '항공제한', geofence: 'GEO Fence',
+                            otherDevices: '타장비', heatmap: '이력밀도',
                           },
                           en: {
-                            weather: '🌤️ Weather', rain: '🌧️ Rain', satellite: '🛰️ Satellite',
-                            seamap: '⚓ Sea Map', topo: '🏔️ Topo', earthquake: '🌍 Quake',
-                            wildfire: '🔥 Wildfire', wind: '💨 Wind', temp: '🌡️ Temp',
-                            typhoon: '🌀 Typhoon', airspace: '✈️ Airspace', geofence: '📍 GEO Fence',
-                            otherDevices: '📡 Devices', heatmap: '🔴 Heatmap',
+                            weather: 'Weather', rain: 'Rain', satellite: 'Satellite',
+                            seamap: 'Sea Map', topo: 'Topo', earthquake: 'Quake',
+                            wildfire: 'Wildfire', wind: 'Wind', temp: 'Temp',
+                            typhoon: 'Typhoon', airspace: 'Airspace', geofence: 'GEO Fence',
+                            otherDevices: 'Devices', heatmap: 'Heatmap',
                           },
                           ja: {
-                            weather: '🌤️ 天気予報', rain: '🌧️ 降水', satellite: '🛰️ 衛星写真',
-                            seamap: '⚓ 海図', topo: '🏔️ 等高線', earthquake: '🌍 地震',
-                            wildfire: '🔥 山火事', wind: '💨 風', temp: '🌡️ 気温',
-                            typhoon: '🌀 台風', airspace: '✈️ 飛行制限', geofence: '📍 GEO Fence',
-                            otherDevices: '📡 他機器', heatmap: '🔴 履歴密度',
+                            weather: '天気予報', rain: '降水', satellite: '衛星写真',
+                            seamap: '海図', topo: '等高線', earthquake: '地震',
+                            wildfire: '山火事', wind: '風', temp: '気温',
+                            typhoon: '台風', airspace: '飛行制限', geofence: 'GEO Fence',
+                            otherDevices: '他機器', heatmap: '履歴密度',
                           },
                         };
                         const lb = OVERLAY_LABELS[uiLang] || OVERLAY_LABELS.ko;
+                        const icons = {
+                          weather: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg>,
+                          rain: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/></svg>,
+                          satellite: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a13 13 0 0 0 0 17M20.5 3.5a13 13 0 0 1 0 17"/></svg>,
+                          seamap: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 17l4-8 4 4 4-6 4 10"/><path d="M3 21h18"/></svg>,
+                          topo: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 3l4 8 5-5 5 15H2L8 3z"/></svg>,
+                          earthquake: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h3l2-4 3 8 2-4h10"/></svg>,
+                          wildfire: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 12c0-4-3-6-3-9 0 4-6 5-6 10a9 9 0 0 0 18 0c0-5-6-7-9-1z"/></svg>,
+                          wind: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>,
+                          temp: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>,
+                          typhoon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 12c-2-2.5-4-3-6-2 2-1 4-4 6-4s4 3 6 4c-2-1-4.5-.5-6 2z"/><path d="M12 12c2 2.5 4 3 6 2-2 1-4 4-6 4s-4-3-6-4c2 1 4.5.5 6-2z"/><circle cx="12" cy="12" r="2"/></svg>,
+                          airspace: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 2.04 7.18 2 2 0 0 1 4 5h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 12a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 19z"/></svg>,
+                          geofence: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+                          otherDevices: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/></svg>,
+                          heatmap: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+                        };
                         return [
                           { key: 'weather', color: '#f59e0b' },
                           { key: 'rain', color: '#3b82f6' },
@@ -1314,10 +1344,9 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                           { key: 'geofence', color: '#10b981' },
                           { key: 'otherDevices', color: '#00d4f0' },
                           { key: 'heatmap', color: '#ef4444' },
-                        ].map(btn => ({ ...btn, label: lb[btn.key] }));
+                        ].map(btn => ({ ...btn, label: lb[btn.key], icon: icons[btn.key] }));
                       })().map(btn => (
                         <button key={btn.key} onClick={() => toggleOverlay(btn.key)}
-                          title={btn.desc}
                           style={{
                             padding: '4px 10px', borderRadius: '7px', fontSize: '10px', fontWeight: '700', cursor: 'pointer',
                             background: overlays[btn.key] ? `${btn.color}30` : 'rgba(10,20,38,.85)',
@@ -1325,8 +1354,9 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                             color: overlays[btn.key] ? btn.color : '#6b8fae',
                             backdropFilter: 'blur(8px)',
                             boxShadow: overlays[btn.key] ? `0 0 8px ${btn.color}50` : 'none',
+                            display: 'flex', alignItems: 'center', gap: '4px',
                           }}>
-                          {btn.label}
+                          {btn.icon} {btn.label}
                         </button>
                       ))}
                     </div>
@@ -1425,7 +1455,9 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                             🌤️ 7일 날씨 예보 — 최신위치 ({weatherPopup.lat.toFixed(3)}, {weatherPopup.lon.toFixed(3)})
                           </span>
                           <button onClick={() => { setWeatherPopup(null); setOverlays(p => ({ ...p, weather: false })); }}
-                            style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+                            style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', display: 'flex' }}>
+                            <IconXCircle size={14} color="#6b8fae" />
+                          </button>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {weatherPopup.days.map((day, i) => (
@@ -1497,7 +1529,9 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                               {satPopup.type === 'iridium' ? '🛰️' : '⭐'} {satPopup.pos.name}
                             </span>
                             <button onClick={() => { setSatPopup(null); selectedSatRef.current = null; autoTrackRef.current = true; }}
-                              style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+                              style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', display: 'flex' }}>
+                              <IconXCircle size={12} color="#6b8fae" />
+                            </button>
                           </div>
                           {[
                             ['고도', `${Math.round(satPopup.pos.alt)}km`],
@@ -1512,7 +1546,8 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                             </div>
                           ))}
                           <div style={{ marginTop: '8px', padding: '4px 8px', background: autoTrackRef.current ? 'rgba(16,185,129,.1)' : 'rgba(245,158,11,.1)', borderRadius: '5px', textAlign: 'center' }}>
-                            <span style={{ fontSize: '8px', color: autoTrackRef.current ? '#10b981' : '#f59e0b', fontFamily: "'JetBrains Mono', monospace" }}>
+                            <span style={{ fontSize: '8px', color: autoTrackRef.current ? '#10b981' : '#f59e0b', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: autoTrackRef.current ? '#10b981' : '#f59e0b', display: 'inline-block' }} />
                               {autoTrackRef.current ? t.autoTrack : t.manualSelect}
                             </span>
                           </div>
@@ -1525,10 +1560,18 @@ export default function TrackViewPopup({ device, imei, alias, onClose, defaultPe
                         <div style={{ position: 'absolute', left: popupPos.x, top: popupPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.97)', border: `1px solid ${selectedPoint.eventcode === '4' ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.4)'}`, borderRadius: '12px', padding: '14px 20px', minWidth: '260px', zIndex: 20, backdropFilter: 'blur(10px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: '700', color: selectedPoint.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
-                                    {selectedPoint.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {alias}
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                      {selectedPoint.eventcode === '4'
+                                        ? <IconSOS size={14} color="#ef4444" />
+                                        : <IconMapPin size={14} color="#00d4f0" />
+                                      }
+                                      {selectedPoint.eventcode === '4' ? 'SOS' : 'TRACK'} — {alias}
+                                    </span>
                                 </span>
                                 <button onClick={() => { setSelectedPoint(null); setPopupPos(null); }}
-                                    style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                                    style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', display: 'flex' }}>
+                                  <IconXCircle size={15} color="#6b8fae" />
+                                </button>
                             </div>
                             {[
                                 ['LAT', selectedPoint.lat?.toFixed(6)],

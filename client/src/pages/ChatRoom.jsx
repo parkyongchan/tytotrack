@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axiosConfig';
+import {
+  IconChat, IconSearch, IconMessage, IconRefresh, IconSatellite,
+  IconCheckCircle, IconXCircle, IconClock, IconSignal, IconTrash,
+  IconPlay, IconSave
+} from '../components/Icons';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
 const getLang = () => localStorage.getItem('lang') || 'ko';
@@ -7,63 +12,63 @@ const getLang = () => localStorage.getItem('lang') || 'ko';
 const CHAT_T = {
   ko: {
     title: 'CHAT ROOM', subtitle: 'Satellite MSG', activeChannels: 'active channels',
-    realtime: '실시간', search: '🔍 전문검색', compose: '✉️ 메시지 작성',
+    realtime: '실시간', search: '전문검색', compose: '메시지 작성',
     searchPlaceholder: '메시지 내용 검색...', searchBtn: '검색',
     noMsg: '수신된 메시지가 없습니다', noMsgSub: '위성 장비에서 MSG 수신 시 자동으로 대화방이 생성됩니다.',
     totalMsg: '총', msgCount: '개 메시지', openChat: '대화 열기 →',
     noMsgInRoom: '메시지 없음', back: '← 목록', msgCountLabel: '개 메시지',
-    draftAlert: '📝 임시저장된 내용이 있습니다.', loadDraft: '불러오기',
+    draftAlert: '임시저장된 내용이 있습니다.', loadDraft: '불러오기',
     inputPlaceholder: '메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)',
     titlePlaceholder: '타이틀 (선택, 최대 20bytes)',
-    sending: '⏳', send: '➤', failed: '❌ 실패', sent: '✅ 성공', waiting: '⏳ 대기', gw: '📡 GW접수',
+    sending: '', send: '', failed: '실패', sent: '성공', waiting: '대기', gw: 'GW접수',
     retry: '재전송', noMsgRoom: '메시지가 없습니다.',
-    composeTitle: '✉️ 메시지 작성', composeSub: '웹 → 위성 장비',
+    composeTitle: '메시지 작성', composeSub: '웹 → 위성 장비',
     deviceLabel: '수신 장비 *', deviceSelect: '— 장비 선택 —',
     titleLabel: '타이틀', titleLabelSub: '(선택, 최대 20bytes)',
     msgLabel: '메시지 *', msgPlaceholder: '전송할 메시지를 입력하세요...',
-    success: '✅ 전송 완료! 위성 장비로 전송 대기 중입니다.',
-    fail: '❌ 전송 실패', resend: '재전송', cancel: '닫기', sendBtn: '▶ 전송', sendingBtn: '⏳ 전송중...',
-    deleteBtn: '🗑 삭제', deleteConfirm: '삭제하시겠습니까?',
+    success: '전송 완료! 위성 장비로 전송 대기 중입니다.',
+    fail: '전송 실패', resend: '재전송', cancel: '닫기', sendBtn: '전송', sendingBtn: '전송중...',
+    deleteBtn: '삭제', deleteConfirm: '삭제하시겠습니까?',
   },
   en: {
     title: 'CHAT ROOM', subtitle: 'Satellite MSG', activeChannels: 'active channels',
-    realtime: 'Live', search: '🔍 Search', compose: '✉️ New Message',
+    realtime: 'Live', search: 'Search', compose: 'New Message',
     searchPlaceholder: 'Search messages...', searchBtn: 'Search',
     noMsg: 'No messages received', noMsgSub: 'Chat rooms are created automatically when MSG is received from satellite devices.',
     totalMsg: 'Total', msgCount: ' messages', openChat: 'Open Chat →',
     noMsgInRoom: 'No messages', back: '← Back', msgCountLabel: ' messages',
-    draftAlert: '📝 Draft saved.', loadDraft: 'Load',
+    draftAlert: 'Draft saved.', loadDraft: 'Load',
     inputPlaceholder: 'Type message... (Enter to send, Shift+Enter for newline)',
     titlePlaceholder: 'Title (optional, max 20bytes)',
-    sending: '⏳', send: '➤', failed: '❌ Failed', sent: '✅ Success', waiting: '⏳ Waiting', gw: '📡 GW Received',
+    sending: '', send: '', failed: 'Failed', sent: 'Success', waiting: 'Waiting', gw: 'GW Received',
     retry: 'Retry', noMsgRoom: 'No messages.',
-    composeTitle: '✉️ New Message', composeSub: 'Web → Satellite Device',
+    composeTitle: 'New Message', composeSub: 'Web → Satellite Device',
     deviceLabel: 'Recipient Device *', deviceSelect: '— Select Device —',
     titleLabel: 'Title', titleLabelSub: '(optional, max 20bytes)',
     msgLabel: 'Message *', msgPlaceholder: 'Enter message to send...',
-    success: '✅ Sent! Waiting for satellite transmission.',
-    fail: '❌ Send Failed', resend: 'Retry', cancel: 'Close', sendBtn: '▶ Send', sendingBtn: '⏳ Sending...',
-    deleteBtn: '🗑 Delete', deleteConfirm: 'Delete this message?',
+    success: 'Sent! Waiting for satellite transmission.',
+    fail: 'Send Failed', resend: 'Retry', cancel: 'Close', sendBtn: 'Send', sendingBtn: 'Sending...',
+    deleteBtn: 'Delete', deleteConfirm: 'Delete this message?',
   },
   ja: {
     title: 'チャットルーム', subtitle: '衛星MSG', activeChannels: 'アクティブチャンネル',
-    realtime: 'リアルタイム', search: '🔍 全文検索', compose: '✉️ メッセージ作成',
+    realtime: 'リアルタイム', search: '全文検索', compose: 'メッセージ作成',
     searchPlaceholder: 'メッセージ検索...', searchBtn: '検索',
     noMsg: 'メッセージがありません', noMsgSub: '衛星デバイスからMSGを受信するとチャットルームが自動作成されます。',
     totalMsg: '合計', msgCount: 'メッセージ', openChat: 'チャットを開く →',
     noMsgInRoom: 'メッセージなし', back: '← 一覧', msgCountLabel: 'メッセージ',
-    draftAlert: '📝 下書きがあります。', loadDraft: '読込',
+    draftAlert: '下書きがあります。', loadDraft: '読込',
     inputPlaceholder: 'メッセージを入力... (Enter送信、Shift+Enter改行)',
     titlePlaceholder: 'タイトル (任意、最大20bytes)',
-    sending: '⏳', send: '➤', failed: '❌ 失敗', sent: '✅ 成功', waiting: '⏳ 待機中', gw: '📡 GW受信',
+    sending: '', send: '', failed: '失敗', sent: '成功', waiting: '待機中', gw: 'GW受信',
     retry: '再送信', noMsgRoom: 'メッセージがありません。',
-    composeTitle: '✉️ メッセージ作成', composeSub: 'Web → 衛星デバイス',
+    composeTitle: 'メッセージ作成', composeSub: 'Web → 衛星デバイス',
     deviceLabel: '受信デバイス *', deviceSelect: '— デバイスを選択 —',
     titleLabel: 'タイトル', titleLabelSub: '(任意、最大20bytes)',
     msgLabel: 'メッセージ *', msgPlaceholder: '送信するメッセージを入力...',
-    success: '✅ 送信完了！衛星デバイスへの送信待機中です。',
-    fail: '❌ 送信失敗', resend: '再送信', cancel: '閉じる', sendBtn: '▶ 送信', sendingBtn: '⏳ 送信中...',
-    deleteBtn: '🗑 削除', deleteConfirm: 'このメッセージを削除しますか？',
+    success: '送信完了！衛星デバイスへの送信待機中です。',
+    fail: '送信失敗', resend: '再送信', cancel: '閉じる', sendBtn: '送信', sendingBtn: '送信中...',
+    deleteBtn: '削除', deleteConfirm: 'このメッセージを削除しますか？',
   },
 };
 
@@ -179,7 +184,9 @@ export default function ChatRoom({ devices = [] }) {
       {/* 헤더 */}
       <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(0,212,240,.15)', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, background: 'rgba(10,20,40,.8)', backdropFilter: 'blur(10px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>💬</div>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IconChat size={18} color="#0d1628" />
+          </div>
           <div>
             <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#fff', letterSpacing: '2px' }}>{t.title}</div>
             <div style={{ fontSize: '10px', color: '#4b6483' }}>{t.subtitle} — {chatDevices.length} {t.activeChannels}</div>
@@ -194,13 +201,13 @@ export default function ChatRoom({ devices = [] }) {
               placeholder={t.searchPlaceholder}
               style={{ padding: '6px 14px', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(139,92,246,.3)', borderRadius: '8px', color: '#fff', fontSize: '11px', outline: 'none', width: '200px' }} />
             <button onClick={handleSearch}
-              style={{ padding: '6px 14px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '8px', color: '#a78bfa', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-              {t.searchBtn}
+              style={{ padding: '6px 14px', background: 'rgba(139,92,246,.2)', border: '1px solid rgba(139,92,246,.4)', borderRadius: '8px', color: '#a78bfa', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <IconSearch size={12} color="#a78bfa" /> {t.searchBtn}
             </button>
           </div>
           <button onClick={() => setShowCompose(true)}
-            style={{ padding: '6px 16px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', border: 'none', borderRadius: '8px', color: '#0d1628', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,212,240,.3)' }}>
-            {t.compose}
+            style={{ padding: '6px 16px', background: 'linear-gradient(135deg,#00d4f0,#0891b2)', border: 'none', borderRadius: '8px', color: '#0d1628', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <IconMessage size={13} color="#0d1628" /> {t.compose}
           </button>
         </div>
       </div>
@@ -233,7 +240,9 @@ export default function ChatRoom({ devices = [] }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignContent: 'flex-start' }}>
         {chatDevices.length === 0 ? (
           <div style={{ width: '100%', textAlign: 'center', marginTop: '80px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📡</div>
+            <div style={{ marginBottom: '16px', opacity: 0.5, display: 'flex', justifyContent: 'center' }}>
+              <IconSatellite size={48} color="#6b8fae" />
+            </div>
             <div style={{ fontSize: '14px', color: '#6b8fae', fontWeight: '700' }}>{t.noMsg}</div>
             <div style={{ fontSize: '11px', color: '#4b6483', marginTop: '6px' }}>{t.noMsgSub}</div>
           </div>
@@ -251,7 +260,9 @@ export default function ChatRoom({ devices = [] }) {
 
               {/* 카드 헤더 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: hasSOS ? 'linear-gradient(135deg,rgba(239,68,68,.3),rgba(239,68,68,.1))' : 'linear-gradient(135deg,rgba(0,212,240,.2),rgba(59,130,246,.1))', border: `1px solid ${hasSOS ? 'rgba(239,68,68,.4)' : 'rgba(0,212,240,.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📡</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: hasSOS ? 'linear-gradient(135deg,rgba(239,68,68,.3),rgba(239,68,68,.1))' : 'linear-gradient(135deg,rgba(0,212,240,.2),rgba(59,130,246,.1))', border: `1px solid ${hasSOS ? 'rgba(239,68,68,.4)' : 'rgba(0,212,240,.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconSatellite size={18} color={hasSOS ? '#ef4444' : '#00d4f0'} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{alias}</div>
                   <div style={{ fontSize: '9px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis' }}>{imei}</div>
@@ -269,7 +280,9 @@ export default function ChatRoom({ devices = [] }) {
               {/* 마지막 메시지 시간 */}
               {lastMsg && (
                 <div style={{ fontSize: '9px', color: '#4b6483', marginBottom: '8px', fontFamily: "'JetBrains Mono', monospace" }}>
-                  🕐 {formatDate(lastMsg.regDate)}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <IconClock size={14} color="#4b6483" /> {formatDate(lastMsg.regDate)}
+                  </span>
                 </div>
               )}
 
@@ -373,10 +386,10 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   };
 
   const getStatusIcon = (m) => {
-    if (m.status === '3') return <span style={{ fontSize: '9px', color: '#ef4444' }}>❌ 실패</span>;
-    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#10b981' }}>✅ 성공</span>;
-    if (m.status === '1') return <span style={{ fontSize: '9px', color: '#00d4f0' }}>📡 GW접수</span>;
-    return <span style={{ fontSize: '9px', color: '#f59e0b' }}>⏳ 대기</span>;
+    if (m.status === '3') return <span style={{ fontSize: '9px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px' }}><IconXCircle size={10} color="#ef4444" /> 실패</span>;
+    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}><IconCheckCircle size={10} color="#10b981" /> 성공</span>;
+    if (m.status === '1') return <span style={{ fontSize: '9px', color: '#010c0e', display: 'flex', alignItems: 'center', gap: '3px' }}><IconSignal size={10} color="#00d4f0" /> GW접수</span>;
+    return <span style={{ fontSize: '9px', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '3px' }}><IconClock size={10} color="#f59e0b" /> 대기</span>;
   };
 
   const draft = localStorage.getItem(`draft_${imei}`);
@@ -390,14 +403,18 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
           style={{ padding: '6px 12px', background: 'rgba(0,212,240,.08)', border: '1px solid rgba(0,212,240,.2)', borderRadius: '8px', color: '#00d4f0', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
           {t.back}
         </button>
-        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,rgba(0,212,240,.2),rgba(59,130,246,.1))', border: '1px solid rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>📡</div>
+        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,rgba(0,212,240,.2),rgba(59,130,246,.1))', border: '1px solid rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <IconSatellite size={18} color="#00d4f0" />
+        </div>
         <div>
           <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{alias}</div>
           <div style={{ fontSize: '9px', color: '#4b6483', fontFamily: "'JetBrains Mono', monospace" }}>{imei}</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '10px', color: '#6b8fae' }}>{messages.length}{t.msgCountLabel}</span>
-          <button onClick={onRefresh} style={{ background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer', fontSize: '16px' }}>↻</button>
+          <button onClick={onRefresh} style={{ background: 'none', border: 'none', color: '#00d4f0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <IconRefresh size={18} color="#00d4f0" />
+          </button>
         </div>
       </div>
 
@@ -405,7 +422,9 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {messages.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#6b8fae', fontSize: '13px', marginTop: '60px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.5 }}>💬</div>
+            <div style={{ marginBottom: '12px', opacity: 0.5, display: 'flex', justifyContent: 'center' }}>
+              <IconChat size={40} color="#6b8fae" />
+            </div>
             {t.noMsgRoom}
           </div>
         ) : messages.map((m, i) => {
@@ -415,7 +434,9 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: isRcv ? 'flex-end' : 'flex-start' }}>
               {!isRcv && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', marginLeft: '4px' }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'rgba(0,212,240,.15)', border: '1px solid rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>📡</div>
+                  <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'rgba(0,212,240,.15)', border: '1px solid rgba(0,212,240,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconSatellite size={16} color="#ee0cd0" />
+                  </div>
                   <span style={{ fontSize: '10px', color: '#6b8fae', fontWeight: '700' }}>{alias}</span>
                 </div>
               )}
@@ -434,8 +455,10 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   {!isRcv && (
                     <>
                       {m.title && (
-                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#7dd3fc', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid rgba(255,255,255,.15)' }}>
-                          📌 {m.title}
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#f70202', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid rgba(255,255,255,.15)' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <IconSignal size={14} color="#f70202" /> {m.title}
+                          </span>
                         </div>
                       )}
                       {m.memo && <div>{m.memo}</div>}
@@ -445,7 +468,9 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                     <>
                       {m.title && (
                         <div style={{ fontSize: '11px', fontWeight: '700', color: '#0a4a5a', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid rgba(0,0,0,.15)' }}>
-                          📌 {m.title}
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <IconSignal size={14} color="#f70202" /> {m.title}
+                          </span>
                         </div>
                       )}
                       <div>{m.text}</div>
@@ -471,8 +496,8 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   )}
                   {isSuperAdmin && (
                     <button onClick={() => deleteMessage(m.idx, m._type)}
-                      style={{ padding: '3px 8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '4px', color: '#ef4444', fontSize: '10px', cursor: 'pointer', fontWeight: '700' }}>
-                      {t.deleteBtn}
+                      style={{ padding: '3px 8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '4px', color: '#ef4444', fontSize: '10px', cursor: 'pointer', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <IconTrash size={10} color="#ef4444" /> {t.deleteBtn}
                     </button>
                   )}
                 </div>
@@ -531,7 +556,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
           </div>
           <button onClick={sendMessage} disabled={sending || !input.trim() || getByteLength(input) > MAX}
             style={{ width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: sending || !input.trim() ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontSize: '20px', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: sending || !input.trim() ? 'none' : '0 4px 15px rgba(0,212,240,.3)', transition: 'all .2s' }}>
-            {sending ? '⏳' : '➤'}
+            {sending ? <IconClock size={20} color="#6b8fae" /> : <IconPlay size={20} color="#0d1628" />}
           </button>
         </div>
       </div>
@@ -574,7 +599,9 @@ function ComposePopup({ devices, onClose, onSent }) {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0', letterSpacing: '1px' }}>{t.composeTitle}</div>
+            <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '13px', fontWeight: '700', color: '#00d4f0', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <IconMessage size={14} color="#00d4f0" /> {t.composeTitle}
+            </div>
             <div style={{ fontSize: '10px', color: '#4b6483', marginTop: '2px' }}>{t.composeSub}</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: '#6b8fae', cursor: 'pointer', fontSize: '14px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -623,13 +650,13 @@ function ComposePopup({ devices, onClose, onSent }) {
           </div>
 
           {result === 'success' && (
-            <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: '10px', fontSize: '12px', color: '#10b981' }}>
-              {t.success}
+            <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: '10px', fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <IconCheckCircle size={14} color="#10b981" /> {t.success}
             </div>
           )}
           {result === 'fail' && (
             <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '10px', fontSize: '12px', color: '#ef4444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              {t.fail}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><IconXCircle size={14} color="#ef4444" /> {t.fail}</span>
               <button onClick={handleSend} style={{ padding: '3px 10px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '6px', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>{t.resend}</button>
             </div>
           )}
@@ -639,7 +666,10 @@ function ComposePopup({ devices, onClose, onSent }) {
           <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#6b8fae', cursor: 'pointer', fontSize: '13px' }}>{t.cancel}</button>
           <button onClick={handleSend} disabled={sending || !selectedImei || !text.trim()}
             style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', background: sending || !selectedImei || !text.trim() ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#00d4f0,#0891b2)', color: '#0d1628', fontWeight: '700', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,212,240,.2)', opacity: (!selectedImei || !text.trim()) ? 0.5 : 1 }}>
-            {sending ? t.sendingBtn : t.sendBtn}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {sending ? <IconClock size={13} color="#936bae" /> : <IconPlay size={13} color="#0d1628" />}
+              {sending ? t.sendingBtn : t.sendBtn}
+            </span>
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axiosConfig';
+import { IconTrash, IconSave, IconMapPin, IconMessage } from '../components/Icons';
 
 const getRole = () => localStorage.getItem('role') || 'REVIEWER';
 const PER_PAGE = 30;
@@ -49,15 +50,25 @@ export default function TextViewData({ devices, allDevices = [] }) {
   };
 
   const getPeriodRange = (p) => {
-    const now = new Date();
-    const start = new Date(now);
-    if (p === '24시') start.setHours(start.getHours() - 24);
-    else if (p === '48시') start.setHours(start.getHours() - 48);
-    else if (p === '3일') start.setDate(start.getDate() - 3);
-    else if (p === '7일') start.setDate(start.getDate() - 7);
-    else if (p === '30일') start.setDate(start.getDate() - 30);
-    const fmt = d => d.toISOString().replace('T', '').replace(/-|:/g, '').slice(0, 12);
-    return { start: fmt(start) + '00', end: fmt(now) + '99' };
+    const gmtZone = parseFloat(localStorage.getItem('gmtZone') ?? '9');
+    const offsetMs = gmtZone * 3600 * 1000;
+    const nowUtc = new Date();
+    const localNow = new Date(nowUtc.getTime() + offsetMs);
+    const localStart = new Date(localNow.getTime());
+    if (p === '24시') localStart.setHours(localStart.getHours() - 24);
+    else if (p === '48시') localStart.setHours(localStart.getHours() - 48);
+    else if (p === '3일') localStart.setDate(localStart.getDate() - 3);
+    else if (p === '7일') localStart.setDate(localStart.getDate() - 7);
+    else if (p === '30일') localStart.setDate(localStart.getDate() - 30);
+    const fmt = d => {
+      const y = d.getUTCFullYear();
+      const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const h = String(d.getUTCHours()).padStart(2, '0');
+      const m = String(d.getUTCMinutes()).padStart(2, '0');
+      return `${y}${mo}${day}${h}${m}`;
+    };
+    return { start: fmt(localStart) + '00', end: fmt(localNow) + '99' };
   };
 
   const fetchByRange = useCallback(async (startStr, endStr, imei) => {
@@ -211,11 +222,13 @@ export default function TextViewData({ devices, allDevices = [] }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
           {isSuperAdmin && checkedIds.length > 0 && (
             <button onClick={handleBulkDelete}
-              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
-              🗑 선택삭제 ({checkedIds.length})
+              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,.4)', background: 'rgba(239,68,68,.15)', color: '#ef4444', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <IconTrash size={12} color="#ef4444" /> 선택삭제 ({checkedIds.length})
             </button>
           )}
-          <button onClick={downloadCSV} style={btnStyle('#10b981')}>↓ CSV</button>
+          <button onClick={downloadCSV} style={{ ...btnStyle('#10b981'), display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <IconSave size={12} color="#10b981" /> CSV
+          </button>
         </div>
       </div>
 
@@ -267,9 +280,21 @@ export default function TextViewData({ devices, allDevices = [] }) {
                     <td style={{ padding: '6px 10px', color: '#6b8fae', fontSize: '10px' }}>{row.imei}</td>
                     <td style={{ padding: '6px 10px', color: '#6b8fae', fontSize: '10px' }}>{row.rimei || '-'}</td>
                     <td style={{ padding: '6px 10px', maxWidth: '200px' }}>
-                      {row.title && <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700' }}>📌 {row.title}</div>}
-                      {row.memo && <div style={{ fontSize: '10px', color: '#a78bfa' }}>💬 {row.memo}</div>}
-                      {isIMT && <div style={{ fontSize: '10px', color: '#3b82f6', fontStyle: 'italic' }}>📦 IMT 바이너리 메시지</div>}
+                      {row.title && (
+                        <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <IconMapPin size={10} color="#f59e0b" /> {row.title}
+                        </div>
+                      )}
+                      {row.memo && (
+                        <div style={{ fontSize: '10px', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <IconMessage size={10} color="#a78bfa" /> {row.memo}
+                        </div>
+                      )}
+                      {isIMT && (
+                        <div style={{ fontSize: '10px', color: '#3b82f6', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <IconSave size={10} color="#3b82f6" /> IMT 바이너리 메시지
+                        </div>
+                      )}
                       {!row.title && !row.memo && !isIMT && <span style={{ color: '#4b6483' }}>-</span>}
                     </td>
                     <td style={{ padding: '6px 10px', color: '#6b8fae', fontSize: '10px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.can || row.ver}>
@@ -279,7 +304,9 @@ export default function TextViewData({ devices, allDevices = [] }) {
                     {isSuperAdmin && (
                       <td style={{ padding: '6px 10px' }}>
                         <button onClick={() => handleDelete(row.idx)}
-                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px' }}>삭제</button>
+                          style={{ padding: '2px 8px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer', fontSize: '9px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <IconTrash size={10} color="#ef4444" /> 삭제
+                        </button>
                       </td>
                     )}
                   </tr>

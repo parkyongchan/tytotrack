@@ -10,8 +10,9 @@ import VectorSource from 'ol/source/Vector';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { Style, Circle, Fill, Stroke } from 'ol/style';
+import { IconSOS, IconMapPin, IconXCircle } from '../components/Icons';
 
-export default function MapView({ devices, allDevices = [], mapPoints = [], onOpenTrack }) {
+export default function MapView({ devices, allDevices = [], mapPoints = [], mapSearched = false, onOpenTrack }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markerLayer = useRef(null);
@@ -69,7 +70,8 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
     const source = pointLayer.current.getSource();
     source.clear();
 
-    if (mapPoints.length === 0) return;
+    const pts = Array.isArray(mapPoints) ? mapPoints : [];
+    if (pts.length === 0) return;
 
     const imeiList = [...new Set(mapPoints.map(d => d.imei))];
     const colorMap = {};
@@ -147,13 +149,14 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
     }
   }, [mapPoints]);
 
-  // devices 최신 위치 마커 (mapPoints 없을 때)
+  // devices 최신 위치 마커
   useEffect(() => {
     if (!markerLayer.current) return;
     const source = markerLayer.current.getSource();
     source.clear();
 
-    if (mapPoints.length > 0) return;
+    // 검색 후에는 마커 숨김
+    if (mapSearched) return;
 
     const valid = devices.filter(d => d.lat && d.lon);
     if (valid.length === 0) return;
@@ -204,7 +207,8 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
   };
 
   const fitAll = useCallback(() => {
-    const source = mapPoints.length > 0
+    const pts = Array.isArray(mapPoints) ? mapPoints : [];
+    const source = pts.length > 0
       ? pointLayer.current?.getSource()
       : markerLayer.current?.getSource();
     if (!source) return;
@@ -247,13 +251,7 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
       </div>
 
       {/* AUTOPLAY */}
-      <div style={{ position: 'absolute', bottom: '10px', left: '10px', zIndex: 10 }}>
-        <button onClick={() => { setAutoplay(p => !p); if (!autoplay) setCountdown(50 * 60); }}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: autoplay ? 'rgba(0,212,240,.15)' : 'rgba(14,26,46,.9)', border: `1px solid ${autoplay ? '#00d4f0' : 'rgba(0,212,240,.3)'}`, borderRadius: '8px', color: autoplay ? '#00d4f0' : '#6b8fae', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", fontWeight: '700', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: autoplay ? '#00d4f0' : '#6b8fae', animation: autoplay ? 'sosBlink 1s ease-in-out infinite' : 'none', display: 'inline-block' }} />
-          AUTOPLAY {autoplay ? formatTime(countdown) : 'OFF'}
-        </button>
-      </div>
+      
 
       {/* 지도 정보 바 */}
       <div style={{ position: 'absolute', bottom: '10px', right: '10px', display: 'flex', gap: '8px', zIndex: 10 }}>
@@ -286,11 +284,17 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
         return (
           <div style={{ position: 'absolute', left: clickPos.x, top: clickPos.y - 10, transform: 'translate(-50%, -100%)', background: 'rgba(10,20,38,.97)', border: `1px solid ${clickedDevice.eventcode === '4' ? 'rgba(239,68,68,.5)' : 'rgba(0,212,240,.4)'}`, borderRadius: '12px', padding: '14px 20px', minWidth: '280px', zIndex: 20, backdropFilter: 'blur(10px)', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: clickedDevice.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace" }}>
-                {clickedDevice.eventcode === '4' ? '🆘 SOS' : '📍 TRACK'} — {alias}
+              <span style={{ fontSize: '14px', fontWeight: '700', color: clickedDevice.eventcode === '4' ? '#ef4444' : '#00d4f0', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {clickedDevice.eventcode === '4'
+                  ? <IconSOS size={14} color="#ef4444" />
+                  : <IconMapPin size={14} color="#00d4f0" />
+                }
+                {clickedDevice.eventcode === '4' ? 'SOS' : 'TRACK'} — {alias}
               </span>
               <button onClick={() => { setClickedDevice(null); setClickPos(null); }}
-                style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                style={{ background: 'none', border: 'none', color: '#6b8fae', cursor: 'pointer', display: 'flex' }}>
+                <IconXCircle size={15} color="#6b8fae" />
+              </button>
             </div>
             {[
               ['LAT', clickedDevice.lat?.toFixed(6)],
@@ -307,8 +311,8 @@ export default function MapView({ devices, allDevices = [], mapPoints = [], onOp
             ))}
             {onOpenTrack && (
               <button onClick={() => { onOpenTrack(clickedDevice); setClickedDevice(null); setClickPos(null); }}
-                style={{ marginTop: '10px', width: '100%', padding: '7px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '7px', color: '#00d4f0', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>
-                📍 TRACK VIEW →
+                style={{ marginTop: '10px', width: '100%', padding: '7px', background: 'rgba(0,212,240,.12)', border: '1px solid rgba(0,212,240,.3)', borderRadius: '7px', color: '#00d4f0', fontSize: '12px', fontWeight: '700', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <IconMapPin size={12} color="#00d4f0" /> TRACK VIEW →
               </button>
             )}
           </div>
