@@ -22,6 +22,7 @@ public class ChatController {
     private final ChatRepository chatRepository;
     private final SndEventListRepository sndRepository;
     private final RcvEventListRepository rcvRepository;
+    private final MessageListRepository messageListRepository;
     private final JwtUtil jwtUtil;
     private final server.domain.user.UserRepository userRepository;
 
@@ -63,7 +64,7 @@ public class ChatController {
         return ResponseEntity.ok(messages);
     }
 
-    // ── 웹→위성 메시지 조회 (전체 - SUPER_ADMIN) ──
+    // ── 웹→위성 메시지 조회 (message_list에서 조회) ──
     @GetMapping("/rcv")
     public ResponseEntity<?> getRcvMessages(
             @RequestHeader("Authorization") String authHeader) {
@@ -71,22 +72,20 @@ public class ChatController {
         String role = jwtUtil.getRole(token);
         String loginId = jwtUtil.getLoginId(token);
 
-        List<RcvEventList> messages;
+        List<MessageList> messages;
         if (role.equals("SUPER_ADMIN")) {
-            // SUPER_ADMIN: 전체 조회
-            messages = rcvRepository.findAllByOrderByRegDateAsc();
+            messages = messageListRepository.findAllByOrderByMidAsc();
         } else {
-            // ADMIN/REVIEWER: 본인 메시지만
             Long userId = userRepository.findByLoginId(loginId)
                     .map(u -> u.getId()).orElse(null);
             messages = userId != null
-                    ? rcvRepository.findByUserIdOrderByIdxDesc(userId)
+                    ? messageListRepository.findByUserIdOrderByMidDesc(userId)
                     : List.of();
         }
         return ResponseEntity.ok(messages);
     }
 
-    // ── 웹→위성 메시지 전송 (rcv_event_list에 저장) ──
+    /// ── 웹→위성 메시지 전송 (message_list에 저장 → SWITCH가 읽음) ──
     @PostMapping("/rcv")
     public ResponseEntity<?> sendToSatellite(
             @RequestBody Map<String, String> req,
@@ -111,29 +110,37 @@ public class ChatController {
 
         String msgId = (loginId != null ? loginId : "unknown") + now;
 
-        RcvEventList rcv = RcvEventList.builder()
-                .imei(imei)
-                .title(req.get("title"))
-                .text(text)
-                .eventcode("1")
-                .status("0")
+        // SWITCH가 읽는 message_list 테이블에 저장
+        MessageList msg = MessageList.builder()
+                .mEsn(imei)
+                .mTitle(req.get("title"))
+                .mMemo(text)
+                .msgStatus("0")
                 .regDate(now)
                 .userId(userId)
                 .msgId(msgId)
                 .build();
-        rcvRepository.save(rcv);
+        messageListRepository.save(msg);
 
-        return ResponseEntity.ok(Map.of("message", "전송 대기 등록 완료", "idx", rcv.getIdx()));
+        return ResponseEntity.ok(Map.of("message", "전송 대기 등록 완료", "idx", msg.getMid()));
     }
-
+    // ── 메시지 상태 조회 (폴링용) ──
+    @GetMapping("/rcv/status/{mid}")
+    public ResponseEntity<?> getMessageStatus(@PathVariable Long mid) {
+        return messageListRepository.findById(mid)
+                .map(msg -> ResponseEntity.ok(Map.of(
+                        "mid", msg.getMid(),
+                        "status", msg.getMsgStatus() != null ? msg.getMsgStatus() : "0"
+                )))
+                .orElse(ResponseEntity.notFound().build());
+    }
     // ── 재전송 ──
     @PutMapping("/rcv/{idx}/retry")
     public ResponseEntity<?> retryRcv(@PathVariable Long idx) {
-        return rcvRepository.findById(idx)
-                .map(rcv -> {
-                    rcv.setStatus("0");
-                    rcv.setRetryCount(rcv.getRetryCount() == null ? 1 : rcv.getRetryCount() + 1);
-                    rcvRepository.save(rcv);
+        return messageListRepository.findById(idx)
+                .map(msg -> {
+                    msg.setMsgStatus("0");
+                    messageListRepository.save(msg);
                     return ResponseEntity.ok(Map.of("message", "재전송 등록 완료"));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -162,7 +169,7 @@ public class ChatController {
         if (!role.equals("SUPER_ADMIN")) {
             return ResponseEntity.status(403).body(Map.of("message", "권한 없음"));
         }
-        rcvRepository.deleteById(idx);
+        messageListRepository.deleteById(idx);
         return ResponseEntity.ok(Map.of("message", "삭제 완료"));
     }
 }

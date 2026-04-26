@@ -156,7 +156,7 @@ export default function DashboardPage({ user, onLogout }) {
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const res = await api.get('/chat/general');
+        const res = await api.get('/chat/general', { timeout: 30000 });
         const msgs = res.data || [];
         // regDate 형식: yyyyMMddHHmmss
         const now = new Date();

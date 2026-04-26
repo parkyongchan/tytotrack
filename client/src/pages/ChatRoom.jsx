@@ -110,7 +110,15 @@ export default function ChatRoom({ devices = [] }) {
       const snd = (Array.isArray(sndRes.data) ? sndRes.data : [])
         .filter(m => m.eventcode === '5' && myImeis.includes(m.imei));
       const rcv = (Array.isArray(rcvRes.data) ? rcvRes.data : [])
-        .filter(m => myImeis.includes(m.imei));
+        .filter(m => myImeis.includes(m.mEsn))
+        .map(m => ({
+          ...m,
+          imei: m.mEsn,
+          title: m.mTitle,
+          text: m.mMemo,
+          status: m.msgStatus,
+          idx: m.mid,
+        }));
       setSndMessages(snd);
       setRcvMessages(rcv);
     } catch { /* 무시 */ }
@@ -126,7 +134,7 @@ export default function ChatRoom({ devices = [] }) {
   // 장비별 메시지 그룹핑
   const getDeviceMessages = (imei) => {
     const snd = sndMessages.filter(m => m.imei === imei || m.rimei === imei);
-    const rcv = rcvMessages.filter(m => m.imei === imei);
+    const rcv = rcvMessages.filter(m => m.imei === imei || m.mEsn === imei);
     return [
       ...snd.map(m => ({ ...m, _type: 'snd' })),
       ...rcv.map(m => ({ ...m, _type: 'rcv' })),
@@ -136,7 +144,7 @@ export default function ChatRoom({ devices = [] }) {
   // 채팅방 있는 장비 (내 장비 중 메시지 있는 것)
   const chatImeis = [...new Set([
     ...sndMessages.map(m => m.imei),
-    ...rcvMessages.map(m => m.imei),
+    ...rcvMessages.map(m => m.imei || m.mEsn),
   ])].filter(imei => myImeis.includes(imei));
 
   const chatDevices = chatImeis.map(imei => {
@@ -358,6 +366,24 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
     return () => clearInterval(timer);
   }, [input, imei]);
 
+// 메시지 상태 폴링
+  const startMsgPolling = (mid, setStatusFn) => {
+    let count = 0;
+    const timer = setInterval(async () => {
+      count++;
+      if (count > 60) { clearInterval(timer); setStatusFn('3'); return; }
+      try {
+        const res = await api.get(`/chat/rcv/status/${mid}`);
+        const st = res.data?.status;
+        if (st === '1') setStatusFn('1');
+        if (st === '2') { clearInterval(timer); setStatusFn('2'); }
+        if (st === '3') { clearInterval(timer); setStatusFn('3'); }
+      } catch { /* 무시 */ }
+    }, 5000);
+    return timer;
+  };
+
+
   const sendMessage = async () => {
     if (!input.trim() || getByteLength(input) > MAX) return;
     if (getByteLength(titleInput) > TITLE_MAX) { alert(`타이틀은 ${TITLE_MAX}바이트 이내여야 합니다.`); return; }
@@ -386,9 +412,11 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
   };
 
   const getStatusIcon = (m) => {
-    if (m.status === '3') return <span style={{ fontSize: '9px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px' }}><IconXCircle size={10} color="#ef4444" /> 실패</span>;
-    if (m.status === '2') return <span style={{ fontSize: '9px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}><IconCheckCircle size={10} color="#10b981" /> 성공</span>;
-    if (m.status === '1') return <span style={{ fontSize: '9px', color: '#010c0e', display: 'flex', alignItems: 'center', gap: '3px' }}><IconSignal size={10} color="#00d4f0" /> GW접수</span>;
+    // message_list: msgStatus 기준
+    const st = m.msgStatus || m.status;
+    if (st === '3') return <span style={{ fontSize: '9px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px' }}><IconXCircle size={10} color="#ef4444" /> 실패</span>;
+    if (st === '2') return <span style={{ fontSize: '9px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}><IconCheckCircle size={10} color="#10b981" /> 성공</span>;
+    if (st === '1') return <span style={{ fontSize: '9px', color: '#00d4f0', display: 'flex', alignItems: 'center', gap: '3px' }}><IconSignal size={10} color="#00d4f0" /> GW전달완료</span>;
     return <span style={{ fontSize: '9px', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '3px' }}><IconClock size={10} color="#f59e0b" /> 대기</span>;
   };
 
@@ -487,7 +515,7 @@ function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, 
                   {isRcv && <div>{getStatusIcon(m)}</div>}
                   {isRcv && m.status === '3' && (
                     <button onClick={async () => {
-                      try { await api.put(`/chat/rcv/${m.idx}/retry`); onRefresh(); }
+                      try { await api.put(`/chat/rcv/${m.mid || m.idx}/retry`); onRefresh(); }
                       catch (_) { alert('재전송 실패'); }
                     }}
                       style={{ padding: '2px 8px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '4px', color: '#ef4444', fontSize: '9px', cursor: 'pointer' }}>
@@ -586,8 +614,26 @@ function ComposePopup({ devices, onClose, onSent }) {
     if (getByteLength(title) > TITLE_MAX) { alert(`타이틀은 ${TITLE_MAX}바이트 이내여야 합니다.`); return; }
     setSending(true); setResult(null);
     try {
-      await api.post('/chat/rcv', { imei: selectedImei, title: title.trim(), text: text.trim() });
-      setResult('success'); setTitle(''); setText(''); onSent();
+      const res = await api.post('/chat/rcv', { imei: selectedImei, title: title.trim(), text: text.trim() });
+      const mid = res.data?.idx;
+      setResult('success');
+      setTitle('');
+      setText('');
+      onSent();
+      // 폴링 시작 (상태 추적)
+      if (mid) {
+        let count = 0;
+        const timer = setInterval(async () => {
+          count++;
+          if (count > 60) { clearInterval(timer); return; }
+          try {
+            const sr = await api.get(`/chat/rcv/status/${mid}`);
+            const st = sr.data?.status;
+            if (st === '2') { clearInterval(timer); setResult('success_ack'); }
+            if (st === '3') { clearInterval(timer); setResult('fail'); }
+          } catch { /* 무시 */ }
+        }, 5000);
+      }
     } catch { setResult('fail'); }
     finally { setSending(false); }
   };
@@ -650,6 +696,11 @@ function ComposePopup({ devices, onClose, onSent }) {
           </div>
 
           {result === 'success' && (
+            <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: '10px', fontSize: '12px', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <IconClock size={14} color="#f59e0b" /> 전송 대기 중... (GW 전달 확인 중)
+            </div>
+          )}
+          {result === 'success_ack' && (
             <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: '10px', fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <IconCheckCircle size={14} color="#10b981" /> {t.success}
             </div>
