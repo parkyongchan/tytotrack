@@ -29,12 +29,12 @@ public class MessageList {
     private String mMemo;
 
     // 상태: 0=대기, 1=전송완료 (SWITCH: msgStatus)
-    @Column(name = "msgStatus", length = 5)
+    @Column(name = "msgstatus", length = 5)
     @Builder.Default
     private String msgStatus = "0";
 
     // 등록시간
-    @Column(name = "\"regDate\"", length = 20)
+    @Column(name = "reg_date", length = 20)
     private String regDate;
 
     // 추가 정보 (TytoTrack 전용)
@@ -47,4 +47,7 @@ public class MessageList {
     @Column(name = "retry_count")
     @Builder.Default
     private Integer retryCount = 0;
+
+    @Column(name = "msgbinary", columnDefinition = "TEXT")
+    private String msgBinary;
 }

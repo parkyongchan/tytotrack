@@ -106,11 +106,12 @@ export default function ChatRoom({ devices = [] }) {
         api.get('/chat/snd'),
         api.get('/chat/rcv'),
       ]);
-      // MSG만 (eventcode=3, memo 있는 것) + 내 장비만
+      // 채팅 메시지: eventcode=3(메모) 또는 5(타이틀+메모) + SUPER_ADMIN은 전체, 그 외는 본인 장비만
       const snd = (Array.isArray(sndRes.data) ? sndRes.data : [])
-        .filter(m => m.eventcode === '5' && myImeis.includes(m.imei));
+        .filter(m => (m.eventcode === '3' || m.eventcode === '5')
+                  && (isSuperAdmin || myImeis.includes(m.imei)));
       const rcv = (Array.isArray(rcvRes.data) ? rcvRes.data : [])
-        .filter(m => myImeis.includes(m.mEsn))
+        .filter(m => isSuperAdmin || myImeis.includes(m.mEsn))
         .map(m => ({
           ...m,
           imei: m.mEsn,
@@ -123,7 +124,7 @@ export default function ChatRoom({ devices = [] }) {
       setRcvMessages(rcv);
     } catch { /* 무시 */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [devices.length]);
+  }, [devices.length, isSuperAdmin]);
 
   useEffect(() => {
     fetchMessages();
@@ -141,11 +142,11 @@ export default function ChatRoom({ devices = [] }) {
     ].sort((a, b) => (a.regDate || '').localeCompare(b.regDate || ''));
   };
 
-  // 채팅방 있는 장비 (내 장비 중 메시지 있는 것)
+  // 채팅방 있는 장비: SUPER_ADMIN은 전체, 그 외는 본인 장비만
   const chatImeis = [...new Set([
     ...sndMessages.map(m => m.imei),
     ...rcvMessages.map(m => m.imei || m.mEsn),
-  ])].filter(imei => myImeis.includes(imei));
+  ])].filter(imei => isSuperAdmin || myImeis.includes(imei));
 
   const chatDevices = chatImeis.map(imei => {
     const device = devices.find(d => d.imei === imei);
@@ -340,8 +341,6 @@ export default function ChatRoom({ devices = [] }) {
 ══════════════════════════════════════ */
 function ChatRoomFull({ imei, alias, messages, onBack, onRefresh, isSuperAdmin, devices }) {
   const t = CHAT_T[getLang()] || CHAT_T.ko;
-  console.log('isSuperAdmin:', isSuperAdmin);
-  console.log('messages sample:', JSON.stringify(messages[0]));
   const [input, setInput] = useState('');
   const [titleInput, setTitleInput] = useState('');
   const [sending, setSending] = useState(false);
