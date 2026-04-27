@@ -5,6 +5,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 public interface SndEventListRepository extends JpaRepository<SndEventList, Long> {
@@ -34,4 +38,10 @@ public interface SndEventListRepository extends JpaRepository<SndEventList, Long
 
     @Query("SELECT s FROM SndEventList s WHERE s.eventcode = '5' ORDER BY s.regDate ASC")
     List<SndEventList> findMessagesWithContent();
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM SndEventList s WHERE s.imei = :imei AND s.eventcode IN ('3', '5')")
+    int deleteChatByImei(@Param("imei") String imei);
+
 }

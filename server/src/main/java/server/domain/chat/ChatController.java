@@ -2,6 +2,7 @@ package server.domain.chat;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import server.domain.location.SndEventList;
 import server.domain.location.SndEventListRepository;
@@ -85,7 +86,7 @@ public class ChatController {
         return ResponseEntity.ok(messages);
     }
 
-    /// ── 웹→위성 메시지 전송 (message_list에 저장 → SWITCH가 읽음) ──
+    // ── 웹→위성 메시지 전송 (message_list에 저장 → SWITCH가 읽음) ──
     @PostMapping("/rcv")
     public ResponseEntity<?> sendToSatellite(
             @RequestBody Map<String, String> req,
@@ -124,6 +125,7 @@ public class ChatController {
 
         return ResponseEntity.ok(Map.of("message", "전송 대기 등록 완료", "idx", msg.getMid()));
     }
+
     // ── 메시지 상태 조회 (폴링용) ──
     @GetMapping("/rcv/status/{mid}")
     public ResponseEntity<?> getMessageStatus(@PathVariable Long mid) {
@@ -134,6 +136,7 @@ public class ChatController {
                 )))
                 .orElse(ResponseEntity.notFound().build());
     }
+
     // ── 재전송 ──
     @PutMapping("/rcv/{idx}/retry")
     public ResponseEntity<?> retryRcv(@PathVariable Long idx) {
@@ -171,5 +174,80 @@ public class ChatController {
         }
         messageListRepository.deleteById(idx);
         return ResponseEntity.ok(Map.of("message", "삭제 완료"));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 채팅방 일괄 삭제 — 특정 IMEI의 모든 메시지(snd + rcv) 삭제
+    // SUPER_ADMIN 권한 필요
+    // ══════════════════════════════════════════════════════════════
+    @DeleteMapping("/room/{imei}")
+    @Transactional
+    public ResponseEntity<?> deleteRoom(
+            @PathVariable String imei,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String role = jwtUtil.getRole(token);
+        if (!role.equals("SUPER_ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("message", "권한 없음"));
+        }
+
+        try {
+            // 1. snd_event_list에서 해당 IMEI의 채팅 메시지 (eventcode=3,5) 삭제
+            int sndDeleted = sndRepository.deleteChatByImei(imei);
+            
+            // 2. message_list에서 해당 IMEI(m_esn) 메시지 삭제
+            int msgDeleted = messageListRepository.deleteByMEsn(imei);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "채팅방 삭제 완료",
+                "imei", imei,
+                "sndDeleted", sndDeleted,
+                "msgDeleted", msgDeleted,
+                "total", sndDeleted + msgDeleted
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "message", "삭제 실패: " + e.getMessage()
+            ));
+        }
+    }
+
+    // ── 여러 채팅방 일괄 삭제 ──
+    @DeleteMapping("/rooms")
+    @Transactional
+    public ResponseEntity<?> deleteRooms(
+            @RequestBody Map<String, List<String>> req,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String role = jwtUtil.getRole(token);
+        if (!role.equals("SUPER_ADMIN")) {
+            return ResponseEntity.status(403).body(Map.of("message", "권한 없음"));
+        }
+
+        List<String> imeis = req.get("imeis");
+        if (imeis == null || imeis.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "imeis는 필수입니다."));
+        }
+
+        int totalSnd = 0, totalMsg = 0;
+        try {
+            for (String imei : imeis) {
+                totalSnd += sndRepository.deleteChatByImei(imei);
+                totalMsg += messageListRepository.deleteByMEsn(imei);
+            }
+            return ResponseEntity.ok(Map.of(
+                "message", "채팅방 일괄 삭제 완료",
+                "rooms", imeis.size(),
+                "sndDeleted", totalSnd,
+                "msgDeleted", totalMsg,
+                "total", totalSnd + totalMsg
+            ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "message", "삭제 실패: " + e.getMessage()
+            ));
+        }
     }
 }

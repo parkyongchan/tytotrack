@@ -151,26 +151,48 @@ export default function DashboardPage({ user, onLogout }) {
     return () => clearInterval(timer);
   }, []);
 
-  // 오늘 미읽은 메시지 조회
+  // ═══════════════════════════════════════════════════════
+  // 미읽음 메시지 합산 — ChatRoom의 lastVisit 시스템과 동기화
+  // ═══════════════════════════════════════════════════════
+  const calculateUnread = useCallback(async () => {
+    try {
+      const res = await api.get('/chat/snd');
+      const msgs = (Array.isArray(res.data) ? res.data : [])
+        .filter(m => m.eventcode === '3' || m.eventcode === '5');
+      
+      // SUPER_ADMIN은 전체, 일반은 본인 장비만
+      const isSuperAdmin = localStorage.getItem('role') === 'SUPER_ADMIN';
+      const myImeis = devices.map(d => d.imei);
+      const myMsgs = isSuperAdmin 
+        ? msgs 
+        : msgs.filter(m => myImeis.includes(m.imei));
+      
+      // 장비별 lastVisit과 비교해서 미읽음 카운트
+      let totalUnread = 0;
+      myMsgs.forEach(m => {
+        const lastVisit = localStorage.getItem(`chat_lastVisit_${m.imei}`) || '00000000000000';
+        if ((m.regDate || '') > lastVisit) totalUnread++;
+      });
+      
+      setUnreadMsg(totalUnread);
+    } catch (e) { 
+      console.error('미읽음 계산 실패:', e); 
+    }
+  }, [devices]);
 
+  // 5초마다 미읽음 폴링
   useEffect(() => {
-    const fetchUnread = async () => {
-      try {
-        const res = await api.get('/chat/general', { timeout: 30000 });
-        const msgs = res.data || [];
-        // regDate 형식: yyyyMMddHHmmss
-        const now = new Date();
-        const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        const todayMsgs = msgs.filter(m => m.regDate?.startsWith(today));
-        const lastRead = parseInt(localStorage.getItem('lastReadMsgId') || '0');
-        const unread = todayMsgs.filter(m => (m.id || 0) > lastRead).length;
-        setUnreadMsg(unread);
-      } catch (e) { console.error('unread error', e); }
-    };
-    fetchUnread();
-    const timer = setInterval(fetchUnread, 10000);
+    calculateUnread();
+    const timer = setInterval(calculateUnread, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [calculateUnread]);
+
+  // 페이지 변경 시 즉시 재계산 (chat 들어갔다 나오면 즉시 갱신)
+  useEffect(() => {
+    if (activePage !== 'chat') {
+      calculateUnread();
+    }
+  }, [activePage, calculateUnread]);
 
   
 
@@ -276,18 +298,22 @@ export default function DashboardPage({ user, onLogout }) {
           className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
 
           <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto' }}>
-            {menuItems.map(item => (
-              <div key={item.id} onClick={() => { handleMenuClick(item.id); if (item.id === 'chat') { localStorage.setItem('lastReadMsgId', String(Date.now())); setUnreadMsg(0); } }}
-                style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '12px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: activePage === item.id ? '#00d4f0' : 'rgba(240,248,255,.5)', background: activePage === item.id ? 'rgba(0,212,240,.1)' : 'transparent', borderLeft: activePage === item.id ? '3px solid #00d4f0' : '3px solid transparent', transition: 'all .2s' }}>
-                <span style={{ fontSize: '17px' }}>{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge > 0 && (
-                  <span style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: '700', padding: '2px 6px', borderRadius: '10px', minWidth: '18px', textAlign: 'center', animation: 'sosBlink 2s ease-in-out infinite' }}>
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-              </div>
-            ))}
+            {menuItems.map(item => {
+              // 미읽음 뱃지 색상: chat은 빨강, 나머지(dash 등)는 자주색
+              const badgeColor = item.id === 'chat' ? '#ef4444' : '#8b5cf6';
+              return (
+                <div key={item.id} onClick={() => handleMenuClick(item.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '12px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: activePage === item.id ? '#00d4f0' : 'rgba(240,248,255,.5)', background: activePage === item.id ? 'rgba(0,212,240,.1)' : 'transparent', borderLeft: activePage === item.id ? '3px solid #00d4f0' : '3px solid transparent', transition: 'all .2s' }}>
+                  <span style={{ fontSize: '17px' }}>{item.icon}</span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge > 0 && (
+                    <span style={{ background: badgeColor, color: '#fff', fontSize: '9px', fontWeight: '700', padding: '2px 6px', borderRadius: '10px', minWidth: '18px', textAlign: 'center', animation: 'sosBlink 2s ease-in-out infinite', boxShadow: `0 0 6px ${badgeColor}66` }}>
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </nav>
 
           <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(0,212,240,.18)' }}>
